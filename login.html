@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en"> <!-- Declares the document type and sets the language to English -->
+<head>
+    <meta charset="UTF-8"> <!-- Sets the character encoding to UTF-8 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- Ensures proper rendering on mobile devices -->
+    <title>Login - Glitch FARMING SOLUTIONS</title> <!-- Sets the title of the webpage -->
+    <style>
+        /* CSS styles for the page */
+        body {
+            font-family: Arial, sans-serif; /* Sets the font */
+            display: flex; /* Enables flexbox layout */
+            flex-direction: column; /* Stacks elements vertically */
+            align-items: center; /* Centers elements horizontally */
+            justify-content: center; /* Centers elements vertically */
+            height: 100vh; /* Sets the height to 100% of the viewport */
+            margin: 0; /* Removes default margin */
+            background-color: #f4f4f4; /* Sets the background color */
+        }
+        h1 {
+            margin-bottom: 20px; /* Adds space below the heading */
+        }
+        form {
+            display: flex; /* Enables flexbox layout for the form */
+            flex-direction: column; /* Stacks form elements vertically */
+            width: 300px; /* Sets the form width */
+        }
+        input {
+            margin-bottom: 15px; /* Adds space below each input */
+            padding: 10px; /* Adds padding inside the input */
+            font-size: 16px; /* Sets the font size */
+        }
+        button {
+            padding: 10px; /* Adds padding inside the button */
+            font-size: 16px; /* Sets the font size */
+            background-color: #007BFF; /* Sets the button background color */
+            color: white; /* Sets the button text color */
+            border: none; /* Removes the border */
+            cursor: pointer; /* Changes the cursor to a pointer on hover */
+        }
+        button:hover {
+            background-color: #0056b3; /* Changes the button background color on hover */
+        }
+    </style>
+    <script>
+        // JavaScript function to validate login credentials
+        function validateLogin(event) {
+            event.preventDefault(); // Prevents the form from submitting
+            const userId = document.getElementById('userId').value; // Gets the value of the User ID input
+            const password = document.getElementById('password').value; // Gets the value of the Password input
+
+            if (userId === '000' && password === '000') { // Checks if credentials are valid
+                window.location.href = 'login1.html'; // Redirects to login1.html if valid
+            } else {
+                alert('Invalid User ID or Password'); // Shows an alert if invalid
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Glitch FARMING SOLUTIONS</h1> <!-- Main heading of the page -->
+    <form onsubmit="validateLogin(event)"> <!-- Form with an onsubmit event handler -->
+        <input type="text" id="userId" placeholder="User ID" required> <!-- Input field for User ID -->
+        <input type="password" id="password" placeholder="Password" required> <!-- Input field for Password -->
+        <button type="submit">Login</button> <!-- Submit button -->
+    </form>
+</body>
+</html>
