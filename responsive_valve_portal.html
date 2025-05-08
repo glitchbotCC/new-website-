@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>CC first proojecttt</title>
+    <link rel="stylesheet" href="style.css" />
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        header {
+            position: relative;
+            text-align: center;
+            color: white;
+            background-image: url('headerpic.jpg');
+            background-size: cover;
+            background-position: center;
+            padding: 100px 0;
+        }
+
+        .overlay-text {
+            color: white;
+            text-shadow: 1px 1px 4px black;
+            font-size: 1.8rem;
+            text-align: center;
+            width: 90%;
+            margin: 0 auto;
+        }
+
+        .nav-links {
+            margin-top: 10px;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            margin: 0 10px;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        #login-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: orange;
+            border: 1px solid black;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            color: white;
+            text-decoration: none;
+        }
+
+        .intro {
+            padding: 20px;
+            background-color: #fff;
+            margin: 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .intro input[type="number"],
+        .intro button {
+            margin: 5px;
+            padding: 10px;
+            font-size: 1rem;
+            width: 100%;
+            max-width: 250px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            background-color: #f9f9f9;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .overlay-text {
+                font-size: 1.4rem;
+                margin-top: -40px;
+            }
+
+            .nav-links {
+                display: flex;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+
+            .nav-links a {
+                margin: 5px;
+                font-size: 0.9rem;
+            }
+
+            #login-button {
+                top: 5px;
+                right: 5px;
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <a href="index.html" id="login-button">Login</a>
+    <div class="overlay-text">
+        Welcome To The Portal
+        <div class="nav-links">
+            <a href="#">Home</a>
+            <a href="#">About</a>
+            <a href="#">Contact</a>
+        </div>
+    </div>
+</header>
+
+<main>
+    <section class="intro">
+        <h2>ADDING OUTLET VALVES</h2>
+        <div>
+            <label for="button-count">Number valves-:</label>
+            <input type="number" id="button-count" min="1" max="10" value="3" />
+            <button onclick="generateButtons()">ADD VALVE</button>
+            <button id="edit-mode-button" onclick="toggleEditMode()" style="margin-left: 10px;">Enable Edit Mode</button>
+        </div>
+
+        <button id="water-button" style="background-color: grey; color: white;">Water</button>
+        <p id="water-status">Water valve is OFF</p>
+        <p id="valve-warning" style="color: red; display: none;">Please add valves first</p>
+
+        <div class="button-container" style="text-align: center;"></div>
+    </section>
+</main>
+
+<footer>
+    <p>&copy; 2025 My Website. All rights reserved.</p>
+</footer>
+
+<!-- Include the JavaScript (same logic as before) -->
+<script>
+    const waterButton = document.getElementById('water-button');
+    const waterStatus = document.getElementById('water-status');
+    const valveWarning = document.getElementById('valve-warning');
+    let valvesAdded = false;
+    let editModeEnabled = false;
+
+    waterButton.addEventListener('click', () => {
+        if (!valvesAdded) {
+            valveWarning.style.display = 'block';
+            return;
+        }
+        valveWarning.style.display = 'none';
+        const isOn = waterButton.style.backgroundColor === 'blue';
+        waterButton.style.backgroundColor = isOn ? 'grey' : 'blue';
+        waterStatus.textContent = isOn ? 'Water valve is OFF' : 'Water valve is ON';
+    });
+
+    waterButton.addEventListener('mouseover', () => {
+        waterButton.style.transform = 'scale(1.1)';
+    });
+
+    waterButton.addEventListener('mouseout', () => {
+        waterButton.style.transform = 'scale(1)';
+    });
+
+    function toggleEditMode() {
+        const buttonCountInput = document.getElementById('button-count');
+        const generateButton = document.querySelector('button[onclick="generateButtons()"]');
+        const editModeButton = document.getElementById('edit-mode-button');
+        const valveButtons = document.querySelectorAll('.valve-btn');
+
+        if (editModeEnabled) {
+            buttonCountInput.disabled = true;
+            generateButton.disabled = true;
+            editModeButton.textContent = 'Enable Edit Mode';
+            valveButtons.forEach(button => button.disabled = false);
+        } else {
+            buttonCountInput.disabled = false;
+            generateButton.disabled = false;
+            editModeButton.textContent = 'Disable Edit Mode';
+            valveButtons.forEach(button => button.disabled = true);
+        }
+        editModeEnabled = !editModeEnabled;
+    }
+
+    function generateButtons() {
+        if (!editModeEnabled) {
+            alert('Enable Edit Mode to add valves.');
+            return;
+        }
+
+        const buttonContainer = document.querySelector('.button-container');
+        const buttonCount = parseInt(document.getElementById('button-count').value);
+        const existingButtons = buttonContainer.children.length;
+        const totalButtons = existingButtons + buttonCount;
+
+        for (let i = existingButtons + 1; i <= totalButtons; i++) {
+            const container = document.createElement('div');
+            container.style.display = 'inline-block';
+            container.style.margin = '10px';
+
+            const button = document.createElement('button');
+            button.classList.add('valve-btn');
+            button.textContent = `Valve ${i}`;
+            button.style.backgroundColor = 'skyblue';
+            button.style.padding = '10px';
+            button.style.marginBottom = '5px';
+
+            const statusText = document.createElement('p');
+            statusText.textContent = 'Valve is OFF';
+
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = 'X';
+            deleteButton.style.backgroundColor = 'red';
+            deleteButton.style.color = 'white';
+            deleteButton.style.border = 'none';
+            deleteButton.style.marginTop = '5px';
+
+            deleteButton.addEventListener('click', () => {
+                if (editModeEnabled) {
+                    buttonContainer.removeChild(container);
+                } else {
+                    alert("Enable Edit Mode to delete valves.");
+                }
+            });
+
+            button.addEventListener('click', () => {
+                if (!editModeEnabled) {
+                    const isOn = button.style.backgroundColor === 'green';
+                    button.style.backgroundColor = isOn ? 'skyblue' : 'green';
+                    statusText.textContent = isOn ? 'Valve is OFF' : 'Valve is ON';
+                }
+            });
+
+            container.appendChild(button);
+            container.appendChild(statusText);
+            container.appendChild(deleteButton);
+            buttonContainer.appendChild(container);
+        }
+
+        valvesAdded = true;
+    }
+</script>
+
+</body>
+</html>

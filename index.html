@@ -49,7 +49,9 @@
             const password = document.getElementById('password').value; // Gets the value of the Password input
 
             if (userId === '000' && password === '000') { // Checks if credentials are valid
-                window.location.href = 'mainn.html'; // Redirects to login1.html if valid
+                window.location.href = 'mainn.html'; // Redirects to mainn.html if valid
+            } else if (userId === '111' && password === '111') { // Checks if alternate credentials are valid
+                window.location.href = 'responsive_valve_portal.html'; // Redirects to responsive_valve_portal.html if valid
             } else {
                 alert('Invalid User ID or Password'); // Shows an alert if invalid
             }
