@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- Metadata -->
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>CC first proojecttt</title>
+
+    <!-- External Stylesheet -->
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+<!-- ======================== HEADER SECTION ======================== -->
+<header style="background-image: url('headerpic.jpg'); background-size: cover; background-position: center; padding: 100px 0; position: relative;">
+    <!-- Title -->
+    <h1 style="color: rgb(255, 255, 255); -webkit-text-stroke: 1px black;">Welcome To The Portal</h1>
+
+    <!-- Navigation Bar -->
+    <nav>
+        <a href="#" style="color: black; margin: 0 10px; text-decoration: none;">Home</a>
+        <a href="#" style="color: black; margin: 0 10px; text-decoration: none;">About</a>
+        <a href="#" style="color: black; margin: 0 10px; text-decoration: none;">Contact</a>
+    </nav>
+
+    <!-- Login Button -->
+    <a href="index.html" style="position: absolute; top: 20px; right: 20px; background-color: rgb(243, 162, 70); color: white; padding: 5px 10px; border-radius: 5px; border: 1px solid black; text-decoration: none;">Login</a>
+</header>
+
+<!-- Placeholder for Login -->
+<div id="login-page"></div>
+
+<!-- ======================== MAIN CONTENT ======================== -->
+<main>
+    <section class="intro" style="padding: 20px; background-color: white; position: relative;">
+        <!-- Section Heading -->
+        <h2 style="display: inline-block;">ADDING OUTLET VALVES</h2>
+
+        <!-- Input Area for Valve Count -->
+        <div style="margin-top: 10px;">
+            <label for="button-count">Number valves-:</label>
+            <input type="number" id="button-count" min="1" max="10" value="3" />
+            <button onclick="generateButtons()">ADD VALVE</button>
+
+            <!-- Hover Effects for Buttons -->
+            <style>
+                .button-container div:hover {
+                    transform: scale(1.05);
+                    transition: transform 0.3s ease;
+                    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+                }
+            </style>
+        </div>
+
+        <!-- Water Control Button -->
+        <button id="water-button" style="position: absolute; top: 20px; right: 20px; background-color: grey; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">Water</button>
+        <p id="water-status" style="position: absolute; top: 61px; right: 20px; color: black; font-size: 14px;">Water valve is OFF</p>
+        <p id="valve-warning" style="position: absolute; top: 90px; right: 20px; color: red; font-size: 14px; display: none;">Please add valves first</p>
+
+        <!-- Water Button Logic -->
+        <script>
+            const waterButton = document.getElementById('water-button');
+            const waterStatus = document.getElementById('water-status');
+            const valveWarning = document.getElementById('valve-warning');
+            let valvesAdded = false;
+
+            waterButton.addEventListener('click', () => {
+                if (!valvesAdded) {
+                    valveWarning.style.display = 'block';
+                    return;
+                }
+                valveWarning.style.display = 'none';
+                const isOn = waterButton.style.backgroundColor === 'blue';
+                waterButton.style.backgroundColor = isOn ? 'grey' : 'blue';
+                waterStatus.textContent = isOn ? 'Water valve is OFF' : 'Water valve is ON';
+            });
+
+            // Water button hover effect
+            waterButton.addEventListener('mouseover', () => {
+                waterButton.style.transform = 'scale(1.1)';
+            });
+            waterButton.addEventListener('mouseout', () => {
+                waterButton.style.transform = 'scale(1)';
+            });
+        </script>
+
+        <!-- Valve Generation and Edit Mode Logic -->
+        <script>
+            let editModeEnabled = false;
+
+            function toggleEditMode() {
+                const buttonCountInput = document.getElementById('button-count');
+                const generateButton = document.querySelector('button[onclick="generateButtons()"]');
+                const editModeButton = document.getElementById('edit-mode-button');
+                const valveButtons = document.querySelectorAll('.valve-btn');
+
+                if (editModeEnabled) {
+                    buttonCountInput.disabled = true;
+                    generateButton.disabled = true;
+                    editModeButton.textContent = 'Enable Edit Mode';
+                    editModeButton.style.backgroundColor = 'lightgray';
+                    valveButtons.forEach(button => button.disabled = false);
+                } else {
+                    buttonCountInput.disabled = false;
+                    generateButton.disabled = false;
+                    editModeButton.textContent = 'Disable Edit Mode';
+                    editModeButton.style.backgroundColor = 'lightgreen';
+                    valveButtons.forEach(button => button.disabled = true);
+                }
+                editModeEnabled = !editModeEnabled;
+            }
+
+            function addEditModeButton() {
+                if (!document.getElementById('edit-mode-button')) {
+                    const editModeButton = document.createElement('button');
+                    editModeButton.id = 'edit-mode-button';
+                    editModeButton.textContent = 'Enable Edit Mode';
+                    editModeButton.style.marginLeft = '10px';
+                    editModeButton.style.backgroundColor = 'lightgray';
+                    editModeButton.addEventListener('click', toggleEditMode);
+
+                    const buttonContainer = document.querySelector('.intro div');
+                    buttonContainer.appendChild(editModeButton);
+                }
+            }
+
+            function generateButtons() {
+                if (!editModeEnabled) {
+                    alert('Enable Edit Mode to add valves.');
+                    return;
+                }
+
+                const buttonContainer = document.querySelector('.button-container');
+                const buttonCount = parseInt(document.getElementById('button-count').value);
+                const existingButtons = buttonContainer.children.length;
+                const totalButtons = existingButtons + buttonCount;
+
+                for (let i = existingButtons + 1; i <= totalButtons; i++) {
+                    const container = document.createElement('div');
+                    container.style.textAlign = 'center';
+                    container.style.display = 'inline-block';
+
+                    const button = document.createElement('button');
+                    button.classList.add('valve-btn');
+                    button.textContent = `Valve ${i}`;
+                    button.style.backgroundColor = 'skyblue';
+                    button.style.border = 'none';
+                    button.style.padding = '10px 20px';
+                    button.style.cursor = 'pointer';
+                    button.style.margin = '5px';
+
+                    const box = document.createElement('div');
+                    box.style.width = '100px';
+                    box.style.height = '150px';
+                    box.style.backgroundColor = 'lightgray';
+                    box.style.margin = '10px';
+                    box.style.border = '1px solid #ccc';
+                    box.style.display = 'flex';
+                    box.style.flexDirection = 'column';
+                    box.style.justifyContent = 'center';
+                    box.style.alignItems = 'center';
+                    box.style.position = 'relative';
+
+                    const statusText = document.createElement('p');
+                    statusText.textContent = 'Valve is OFF';
+                    statusText.style.margin = '5px 0';
+
+                    const deleteButton = document.createElement('button');
+                    deleteButton.textContent = 'X';
+                    deleteButton.style.position = 'absolute';
+                    deleteButton.style.top = '5px';
+                    deleteButton.style.right = '5px';
+                    deleteButton.style.backgroundColor = 'red';
+                    deleteButton.style.color = 'white';
+                    deleteButton.style.border = 'none';
+                    deleteButton.style.borderRadius = '50%';
+                    deleteButton.style.width = '20px';
+                    deleteButton.style.height = '20px';
+                    deleteButton.style.cursor = 'pointer';
+
+                    deleteButton.addEventListener('click', () => {
+                        if (editModeEnabled) {
+                            buttonContainer.removeChild(container);
+                        } else {
+                            alert("Enable Edit Mode to delete valves.");
+                        }
+                    });
+
+                    button.addEventListener('click', () => {
+                        if (!editModeEnabled) {
+                            const isOn = button.style.backgroundColor === 'green';
+                            button.style.backgroundColor = isOn ? 'skyblue' : 'green';
+                            statusText.textContent = isOn ? 'Valve is OFF' : 'Valve is ON';
+                        }
+                    });
+
+                    box.appendChild(statusText);
+                    box.appendChild(deleteButton);
+                    container.appendChild(button);
+                    container.appendChild(box);
+                    buttonContainer.appendChild(container);
+                }
+
+                valvesAdded = true;
+                addEditModeButton();
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                addEditModeButton();
+            });
+        </script>
+
+        <!-- Valve Output Area -->
+        <div class="button-container" style="text-align: center;"></div>
+    </section>
+</main>
+
+<!-- ======================== FOOTER SECTION ======================== -->
+<footer>
+    <p>&copy; 2025 My Website. All rights reserved.</p>
+</footer>
+
+</body>
+</html>
