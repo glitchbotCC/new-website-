@@ -45,13 +45,16 @@
         // JavaScript function to validate login credentials
         function validateLogin(event) {
             event.preventDefault(); // Prevents the form from submitting
-            const userId = document.getElementById('userId').value; // Gets the value of the User ID input
-            const password = document.getElementById('password').value; // Gets the value of the Password input
+            const credentials = {
+                '000': 'mainn.html',
+                '111': 'responsive_valve_portal.html'
+            };
 
-            if (userId === '000' && password === '000') { // Checks if credentials are valid
-                window.location.href = 'mainn.html'; // Redirects to mainn.html if valid
-            } else if (userId === '111' && password === '111') { // Checks if alternate credentials are valid
-                window.location.href = 'responsive_valve_portal.html'; // Redirects to responsive_valve_portal.html if valid
+            const userId = document.getElementById('userId').value.trim(); // Gets and trims the User ID input
+            const password = document.getElementById('password').value.trim(); // Gets and trims the Password input
+
+            if (credentials[userId] && userId === password) { // Checks if credentials are valid
+                window.location.href = credentials[userId]; // Redirects to the corresponding page
             } else {
                 alert('Invalid User ID or Password'); // Shows an alert if invalid
             }
