@@ -249,52 +249,6 @@
 
         valvesAdded = true;
     } 
-
-    async function fetchWeatherData(area) {
-        try {
-            const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${area},IN&appid=YOUR_API_KEY&units=metric`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch weather data');
-            }
-            const data = await response.json();
-            alert(`Weather in ${area}: ${data.weather[0].description}, Temperature: ${data.main.temp}°C`);
-        } catch (error) {
-            alert('Error fetching weather data: ' + error.message);
-        }
-    }
-
-    function createWeatherDropdown() {
-        const introSection = document.querySelector('.intro');
-
-        const dropdown = document.createElement('select');
-        dropdown.id = 'area-dropdown';
-        dropdown.style.margin = '10px';
-        dropdown.style.padding = '10px';
-        dropdown.style.fontSize = '1rem';
-
-        const areas = ['Visakhapatnam', 'Vijayawada', 'Tirupati', 'Guntur', 'Rajahmundry'];
-        areas.forEach(area => {
-            const option = document.createElement('option');
-            option.value = area;
-            option.textContent = area;
-            dropdown.appendChild(option);
-        });
-
-        const weatherButton = document.createElement('button');
-        weatherButton.textContent = 'Get Weather Update';
-        weatherButton.style.margin = '10px';
-        weatherButton.style.padding = '10px';
-        weatherButton.style.fontSize = '1rem';
-        weatherButton.addEventListener('click', () => {
-            const selectedArea = dropdown.value;
-            fetchWeatherData(selectedArea);
-        });
-
-        introSection.appendChild(dropdown);
-        introSection.appendChild(weatherButton);
-    }
-
-    createWeatherDropdown();
 </script>
 
 </body>
