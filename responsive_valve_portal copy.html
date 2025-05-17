@@ -2,17 +2,23 @@
 <html lang="en">
 
 <head>
+    <!-- Meta Information -->
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>CC first proojecttt</title>
+    
+    <!-- External CSS -->
     <link rel="stylesheet" href="style.css" />
 
+    <!-- Inline CSS -->
     <style>
+        /* General body styling */
         body {
             margin: 0;
             font-family: Arial, sans-serif;
         }
 
+        /* Header styling */
         header {
             position: relative;
             text-align: center;
@@ -23,6 +29,7 @@
             padding: 100px 0;
         }
 
+        /* Overlay text styling */
         .overlay-text {
             color: white;
             text-shadow: 1px 1px 4px black;
@@ -32,6 +39,7 @@
             margin: 0 auto;
         }
 
+        /* Navigation links styling */
         .nav-links {
             margin-top: 10px;
         }
@@ -44,6 +52,7 @@
             font-size: 1rem;
         }
 
+        /* Login button styling */
         #login-button {
             position: absolute;
             top: 10px;
@@ -57,6 +66,7 @@
             text-decoration: none;
         }
 
+        /* Intro section styling */
         .intro {
             padding: 20px;
             background-color: #fff;
@@ -66,6 +76,7 @@
             text-align: center;
         }
 
+        /* Input and button styling in intro section */
         .intro input[type="number"],
         .intro button {
             margin: 5px;
@@ -75,6 +86,7 @@
             max-width: 250px;
         }
 
+        /* Footer styling */
         footer {
             text-align: center;
             padding: 20px;
@@ -82,6 +94,7 @@
             font-size: 0.9rem;
         }
 
+        /* Responsive styling for smaller screens */
         @media (max-width: 768px) {
             .overlay-text {
                 font-size: 1.4rem;
@@ -111,10 +124,15 @@
 
 <body>
 
+<!-- Header Section -->
 <header>
+    <!-- Login Button -->
     <a href="index.html" id="login-button">Login</a>
+    
+    <!-- Overlay Text -->
     <div class="overlay-text">
         Welcome To The Portal
+        <!-- Navigation Links -->
         <div class="nav-links">
             <a href="#">Home</a>
             <a href="#">About</a>
@@ -123,36 +141,46 @@
     </div>
 </header>
 
+<!-- Main Content -->
 <main>
+    <!-- Intro Section -->
     <section class="intro">
         <h2>ADDING OUTLET VALVES</h2>
         <div>
+            <!-- Input for number of valves -->
             <label for="button-count">Number valves-:</label>
             <input type="number" id="button-count" min="1" max="10" value="3" />
+            
+            <!-- Buttons for adding valves and toggling edit mode -->
             <button onclick="generateButtons()">ADD VALVE</button>
             <button id="edit-mode-button" onclick="toggleEditMode()" style="margin-left: 10px;">Enable Edit Mode</button>
         </div>
 
+        <!-- Water button and status -->
         <button id="water-button" style="background-color: grey; color: white;">Water</button>
         <p id="water-status">Water valve is OFF</p>
         <p id="valve-warning" style="color: red; display: none;">Please add valves first</p>
 
+        <!-- Container for dynamically generated buttons -->
         <div class="button-container" style="text-align: center;"></div>
     </section>
 </main>
 
+<!-- Footer Section -->
 <footer>
     <p>&copy; 2025 My Website. All rights reserved.</p>
 </footer>
 
-<!-- Include the JavaScript (same logic as before) -->
+<!-- JavaScript -->
 <script>
+    // References to key elements
     const waterButton = document.getElementById('water-button');
     const waterStatus = document.getElementById('water-status');
     const valveWarning = document.getElementById('valve-warning');
-    let valvesAdded = false;
-    let editModeEnabled = false;
+    let valvesAdded = false; // Tracks if valves are added
+    let editModeEnabled = false; // Tracks if edit mode is enabled
 
+    // Toggle water button state
     waterButton.addEventListener('click', () => {
         if (!valvesAdded) {
             valveWarning.style.display = 'block';
@@ -164,6 +192,7 @@
         waterStatus.textContent = isOn ? 'Water valve is OFF' : 'Water valve is ON';
     });
 
+    // Add hover effect to water button
     waterButton.addEventListener('mouseover', () => {
         waterButton.style.transform = 'scale(1.1)';
     });
@@ -172,6 +201,7 @@
         waterButton.style.transform = 'scale(1)';
     });
 
+    // Toggle edit mode
     function toggleEditMode() {
         const buttonCountInput = document.getElementById('button-count');
         const generateButton = document.querySelector('button[onclick="generateButtons()"]');
@@ -192,6 +222,7 @@
         editModeEnabled = !editModeEnabled;
     }
 
+    // Generate valve buttons dynamically
     function generateButtons() {
         if (!editModeEnabled) {
             alert('Enable Edit Mode to add valves.');
@@ -225,6 +256,7 @@
             deleteButton.style.border = 'none';
             deleteButton.style.marginTop = '5px';
 
+            // Delete button functionality
             deleteButton.addEventListener('click', () => {
                 if (editModeEnabled) {
                     buttonContainer.removeChild(container);
@@ -233,6 +265,7 @@
                 }
             });
 
+            // Toggle valve button state
             button.addEventListener('click', () => {
                 if (!editModeEnabled) {
                     const isOn = button.style.backgroundColor === 'green';
@@ -247,7 +280,7 @@
             buttonContainer.appendChild(container);
         }
 
-        valvesAdded = true;
+        valvesAdded = true; // Mark valves as added
     } 
 </script>
 
