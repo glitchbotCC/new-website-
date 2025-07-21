@@ -102,15 +102,7 @@
             setTimeout(() => requestAnimationFrame(drawGame), 150); // Reduced speed by adding delay
         } 
 
-        // Update high score in highscore.doc
-        const highScoreFile = '/Users/krishnasai/Desktop/New app/highscore.doc';
-        fetch('http://localhost:3000/updateHighScore', {
-            method: 'POST',
-            headers: {
-            'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ score }),
-        }).catch(err => console.error('Failed to update high score:', err));
+
 
         drawGame();
     </script>
