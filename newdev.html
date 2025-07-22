@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Farm Control - HTML Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://rsms.me/">
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+    <style>
+        :root {
+            --font-sans: 'Inter', sans-serif;
+            
+            /* Slate & Moss Dark Theme */
+            --dark-bg: #263238;
+            --dark-card-bg: #37474F;
+            --dark-text: #CFD8DC;
+            --dark-border: #546E7A;
+            --dark-accent: #81C784;
+            --dark-accent-fg: #263238;
+            --dark-error: #E57373;
+
+            /* Slate & Moss Light Theme */
+            --light-bg: #ECEFF1;
+            --light-card-bg: #FFFFFF;
+            --light-text: #263238;
+            --light-border: #B0BEC5;
+            --light-accent: #4CAF50;
+            --light-accent-fg: #FFFFFF;
+            --light-error: #D32F2F;
+        }
+        html.dark {
+            --bg-color: var(--dark-bg);
+            --card-color: var(--dark-card-bg);
+            --text-color: var(--dark-text);
+            --border-color: var(--dark-border);
+            --accent-color: var(--dark-accent);
+            --accent-fg-color: var(--dark-accent-fg);
+            --error-color: var(--dark-error);
+        }
+        html.light {
+            --bg-color: var(--light-bg);
+            --card-color: var(--light-card-bg);
+            --text-color: var(--light-text);
+            --border-color: var(--light-border);
+            --accent-color: var(--light-accent);
+            --accent-fg-color: var(--light-accent-fg);
+            --error-color: var(--light-error);
+        }
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        .card {
+            background-color: var(--card-color);
+            border-color: var(--border-color);
+        }
+        .btn {
+            background-color: var(--card-color);
+            color: var(--text-color);
+            border-color: var(--border-color);
+        }
+        .btn:hover {
+            border-color: var(--accent-color);
+        }
+        .btn-accent {
+            background-color: var(--accent-color);
+            color: var(--accent-fg-color);
+            border-color: var(--accent-color);
+        }
+        .btn-danger {
+            background-color: var(--error-color);
+            color: var(--light-accent-fg);
+            border-color: var(--error-color);
+        }
+        .valve-on {
+            background-color: color-mix(in srgb, var(--accent-color) 20%, transparent);
+            border-color: var(--accent-color);
+        }
+        @keyframes pulse {
+            50% { opacity: 0.6; }
+        }
+        .status-dot-on {
+            background-color: var(--accent-color);
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="transition-colors duration-300">
+
+    <div class="max-w-7xl mx-auto p-4 md:p-8">
+        <!-- Header -->
+        <header class="mb-8 flex flex-col md:flex-row justify-between md:items-center gap-4">
+            <div class="flex items-center gap-4">
+                <div class="text-5xl">👨‍🌾</div>
+                <div>
+                    <h1 class="text-3xl md:text-4xl font-bold" style="color: var(--text-color);">Smart Farm Control</h1>
+                    <p style="color: color-mix(in srgb, var(--text-color) 70%, transparent);">Automate and Monitor Your Irrigation System</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <button id="lock-btn" class="btn px-4 py-2 rounded-md font-semibold transition-all duration-200 flex items-center justify-center gap-2 border">
+                    <svg id="lock-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>
+                    <span id="lock-text">Lock Config</span>
+                </button>
+                <button id="theme-btn" class="btn p-2 rounded-md font-semibold transition-all duration-200 flex items-center justify-center gap-2 border">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="mb-8 grid grid-cols-2 md:grid-cols-4 gap-4 text-center"></div>
+
+        <!-- System Controls -->
+        <div class="mb-8 card p-6 rounded-lg border">
+            <h2 class="text-xl font-bold mb-4" style="color: color-mix(in srgb, var(--text-color) 80%, transparent);">System Controls & Search</h2>
+            <div class="flex flex-col md:flex-row gap-4 mb-4">
+                <div class="flex items-center gap-2">
+                    <input type="number" id="add-valves-input" value="1" class="w-20 p-2 rounded-md text-center" style="background-color: color-mix(in srgb, var(--card-color) 50%, var(--bg-color));">
+                    <button id="add-valves-btn" class="btn btn-accent px-4 py-2 rounded-md font-semibold">Add Valves</button>
+                </div>
+                <input type="search" id="search-input" placeholder="🔍 Search by name, pin, or note..." class="flex-grow p-2 rounded-md" style="background-color: color-mix(in srgb, var(--card-color) 50%, var(--bg-color));">
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <button data-modal="scheduler" class="modal-trigger btn">Scheduler</button>
+                <button data-modal="automation" class="modal-trigger btn">Automation</button>
+                <button data-modal="logs" class="modal-trigger btn">Logs</button>
+                <button id="emergency-stop-btn" class="btn btn-danger">🚨 All Systems OFF</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Valve Grid -->
+            <main class="lg:col-span-2">
+                <h2 class="text-2xl font-bold mb-4" style="color: var(--text-color);">Configured Irrigation Valves</h2>
+                <div id="valve-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+            </main>
+            <!-- Side Panel -->
+            <aside id="side-panel" class="space-y-6"></aside>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-container" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex justify-center items-center p-4 hidden">
+        <div class="card rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col border">
+            <header class="flex justify-between items-center p-4 border-b" style="border-color: var(--border-color);">
+                <h2 id="modal-title" class="text-xl font-bold">Modal Title</h2>
+                <button id="modal-close-btn" class="hover:text-white" style="color: color-mix(in srgb, var(--text-color) 70%, transparent);">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+            </header>
+            <main id="modal-content" class="p-6 overflow-y-auto"></main>
+        </div>
+    </div>
+
+    <script>
+        // --- APPLICATION LOGIC ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- STATE & MOCK DATA ---
+            let state = {
+                theme: 'dark',
+                isLocked: false,
+                valves: [
+                    { name: "Tomatoes", pin: 17, status: false, locked: false, icon: "🍅", note: "Main tomato bed" },
+                    { name: "Peppers", pin: 18, status: false, locked: false, icon: "🌶️", note: "" },
+                    { name: "Herbs", pin: 27, status: true, locked: false, icon: "🌿", note: "Rosemary and Thyme", startTime: Date.now() - 12000 },
+                ],
+                auxControls: [
+                    { name: "Main Pump", pin: 13, status: false },
+                    { name: "Grow Lights", pin: 19, status: true },
+                    { name: "Fan", pin: 21, status: false },
+                    { name: "Heater", pin: 16, status: false },
+                ],
+                logs: [
+                    "[2025-07-21 20:47:38] Valve 'Herbs' (Pin 27) toggled ON.",
+                    "[2025-07-21 20:47:23] Application initialized successfully.",
+                ],
+                settings: { location: "London, UK" },
+                sensors: { temperature: '24.5°C', humidity: '55.2%', moisture: 'Dry' }
+            };
+
+            // --- DOM SELECTORS ---
+            const dashboard = document.getElementById('dashboard');
+            const valveGrid = document.getElementById('valve-grid');
+            const sidePanel = document.getElementById('side-panel');
+            const themeBtn = document.getElementById('theme-btn');
+            const lockBtn = document.getElementById('lock-btn');
+            const lockText = document.getElementById('lock-text');
+            const lockIcon = document.getElementById('lock-icon');
+            const modalContainer = document.getElementById('modal-container');
+            const modalTitle = document.getElementById('modal-title');
+            const modalContent = document.getElementById('modal-content');
+            const modalCloseBtn = document.getElementById('modal-close-btn');
+            
+            // --- RENDER FUNCTIONS ---
+            const renderDashboard = () => {
+                const valvesOn = state.valves.filter(v => v.status).length;
+                const auxOn = state.auxControls.filter(a => a.status).length;
+                dashboard.innerHTML = `
+                    <div class="card p-4 rounded-lg border"><div class="text-sm" style="color: color-mix(in srgb, var(--text-color) 70%, transparent);">VALVES</div><div class="text-2xl font-bold">${state.valves.length}</div></div>
+                    <div class="card p-4 rounded-lg border"><div class="text-sm" style="color: color-mix(in srgb, var(--text-color) 70%, transparent);">ACTIVE</div><div class="text-2xl font-bold" style="color: var(--accent-color);">${valvesOn + auxOn}</div></div>
+                    <div class="card p-4 rounded-lg border"><div class="text-sm" style="color: color-mix(in srgb, var(--text-color) 70%, transparent);">LOGS</div><div class="text-2xl font-bold">${state.logs.length}</div></div>
+                    <div class="card p-4 rounded-lg border"><div class="text-sm" style="color: color-mix(in srgb, var(--text-color) 70%, transparent);">LOCATION</div><div class="text-lg font-semibold truncate">${state.settings.location}</div></div>
+                `;
+            };
+
+            const renderValves = () => {
+                valveGrid.innerHTML = state.valves.map((valve, index) => {
+                    const timerHTML = valve.status && valve.startTime ? `<div class="text-center text-xs h-4 timer" data-start-time="${valve.startTime}"></div>` : '<div class="h-4"></div>';
+                    return `
+                        <div class="card p-4 rounded-lg border ${valve.status ? 'valve-on' : ''}">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex items-center gap-2"><span class="text-2xl">${valve.icon}</span><span class="font-bold text-lg">${valve.name}</span></div>
+                                <div class="w-4 h-4 rounded-full ${valve.status ? 'status-dot-on' : ''}" style="background-color: ${!valve.status ? 'var(--border-color)' : ''};"></div>
+                            </div>
+                            <p class="text-sm mb-3 h-5 truncate" style="color: color-mix(in srgb, var(--text-color) 70%, transparent);" title="${valve.note}">${valve.note || 'No note'}</p>
+                            <button data-index="${index}" class="toggle-valve-btn btn w-full mb-2">Toggle ${valve.status ? 'OFF' : 'ON'}</button>
+                            ${timerHTML}
+                        </div>
+                    `;
+                }).join('');
+            };
+
+            const renderSidePanel = () => {
+                const auxHTML = `
+                    <div class="card p-4 rounded-lg border">
+                        <h3 class="font-bold mb-4" style="color: color-mix(in srgb, var(--text-color) 80%, transparent);">Auxiliary Controls</h3>
+                        <div class="grid grid-cols-2 gap-2">
+                            ${state.auxControls.map((aux, index) => `
+                                <button data-index="${index}" class="toggle-aux-btn btn ${aux.status ? 'btn-accent' : ''} flex-col h-20">
+                                    <span>${aux.name}</span><span class="text-xs">(Pin ${aux.pin})</span>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>`;
+                const sensorsHTML = `
+                    <div class="card p-4 rounded-lg border">
+                        <h3 class="font-bold mb-4" style="color: color-mix(in srgb, var(--text-color) 80%, transparent);">🌿 Live Sensor Data</h3>
+                        <div class="space-y-3">
+                            ${Object.entries(state.sensors).map(([key, value]) => `
+                                <div class="flex justify-between items-baseline">
+                                    <span class="capitalize" style="color: color-mix(in srgb, var(--text-color) 70%, transparent);">${key}</span>
+                                    <span class="font-mono font-bold text-lg">${value}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>`;
+                sidePanel.innerHTML = auxHTML + sensorsHTML;
+            };
+
+            const renderAll = () => {
+                renderDashboard();
+                renderValves();
+                renderSidePanel();
+            };
+
+            // --- EVENT HANDLERS ---
+            const logAction = (message) => {
+                const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+                state.logs.unshift(`[${timestamp}] ${message}`);
+            };
+
+            const handleThemeToggle = () => {
+                state.theme = state.theme === 'dark' ? 'light' : 'dark';
+                document.documentElement.className = state.theme;
+            };
+
+            const handleLockToggle = () => {
+                state.isLocked = !state.isLocked;
+                lockText.textContent = state.isLocked ? 'Unlock Config' : 'Lock Config';
+                lockBtn.classList.toggle('btn-danger', state.isLocked);
+                lockIcon.innerHTML = state.isLocked ? 
+                    `<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>` :
+                    `<rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>`;
+                logAction(`Configuration ${state.isLocked ? 'Locked' : 'Unlocked'}.`);
+            };
+
+            const openModal = (type) => {
+                modalTitle.textContent = {
+                    scheduler: "Scheduler",
+                    automation: "Automation Rules",
+                    logs: "System Logs"
+                }[type];
+                
+                if (type === 'logs') {
+                    modalContent.innerHTML = `<div class="bg-slate-900 p-4 rounded-md font-mono text-sm text-slate-300 max-h-96 overflow-y-auto">${state.logs.join('<br>')}</div>`;
+                } else {
+                    modalContent.innerHTML = `<p>${type} UI would go here...</p>`;
+                }
+                modalContainer.classList.remove('hidden');
+            };
+
+            const closeModal = () => modalContainer.classList.add('hidden');
+
+            // --- EVENT LISTENERS ---
+            themeBtn.addEventListener('click', handleThemeToggle);
+            lockBtn.addEventListener('click', handleLockToggle);
+            modalCloseBtn.addEventListener('click', closeModal);
+            document.querySelector('#emergency-stop-btn').addEventListener('click', () => {
+                state.valves.forEach(v => v.status = false);
+                state.auxControls.forEach(a => a.status = false);
+                logAction("EMERGENCY STOP ACTIVATED.");
+                renderAll();
+            });
+
+            document.body.addEventListener('click', (e) => {
+                if (e.target.closest('.modal-trigger')) {
+                    openModal(e.target.closest('.modal-trigger').dataset.modal);
+                }
+                if (e.target.closest('.toggle-valve-btn')) {
+                    const index = parseInt(e.target.closest('.toggle-valve-btn').dataset.index);
+                    const valve = state.valves[index];
+                    valve.status = !valve.status;
+                    valve.startTime = valve.status ? Date.now() : null;
+                    logAction(`Valve '${valve.name}' toggled ${valve.status ? 'ON' : 'OFF'}.`);
+                    renderValves();
+                    renderDashboard();
+                }
+                if (e.target.closest('.toggle-aux-btn')) {
+                    const index = parseInt(e.target.closest('.toggle-aux-btn').dataset.index);
+                    const aux = state.auxControls[index];
+                    aux.status = !aux.status;
+                    logAction(`Aux '${aux.name}' toggled ${aux.status ? 'ON' : 'OFF'}.`);
+                    renderSidePanel();
+                    renderDashboard();
+                }
+            });
+
+            // --- TIMERS & UPDATES ---
+            setInterval(() => {
+                // Simulate sensor updates
+                state.sensors = {
+                    temperature: `${(24 + Math.random()).toFixed(1)}°C`,
+                    humidity: `${(55 + Math.random() * 2).toFixed(1)}%`,
+                    moisture: Math.random() > 0.5 ? 'Dry' : 'Wet',
+                };
+                renderSidePanel();
+
+                // Update valve timers
+                document.querySelectorAll('.timer').forEach(timerEl => {
+                    const startTime = parseInt(timerEl.dataset.startTime);
+                    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                    const h = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+                    const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
+                    const s = String(elapsed % 60).padStart(2, '0');
+                    timerEl.textContent = `ON for: ${h}:${m}:${s}`;
+                });
+            }, 1000);
+
+            // --- INITIAL RENDER ---
+            renderAll();
+        });
+    </script>
+</body>
+</html>
