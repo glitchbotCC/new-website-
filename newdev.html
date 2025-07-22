@@ -193,6 +193,8 @@
             const modalTitle = document.getElementById('modal-title');
             const modalContent = document.getElementById('modal-content');
             const modalCloseBtn = document.getElementById('modal-close-btn');
+            const addValvesBtn = document.getElementById('add-valves-btn');
+            const addValvesInput = document.getElementById('add-valves-input');
             
             // --- RENDER FUNCTIONS ---
             const renderDashboard = () => {
@@ -212,8 +214,18 @@
                     return `
                         <div class="card p-4 rounded-lg border ${valve.status ? 'valve-on' : ''}">
                             <div class="flex justify-between items-start mb-2">
-                                <div class="flex items-center gap-2"><span class="text-2xl">${valve.icon}</span><span class="font-bold text-lg">${valve.name}</span></div>
-                                <div class="w-4 h-4 rounded-full ${valve.status ? 'status-dot-on' : ''}" style="background-color: ${!valve.status ? 'var(--border-color)' : ''};"></div>
+                                <div class="font-bold text-lg flex items-center gap-2">
+                                    ${valve.icon} ${valve.name}
+                                    <button class="rename-btn opacity-50 hover:opacity-100" data-type="valve" data-index="${index}" data-current-name="${valve.name}">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                                    </button>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button class="remove-valve-btn opacity-50 hover:opacity-100 text-red-400" data-index="${index}" data-name="${valve.name}">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                    </button>
+                                    <div class="w-4 h-4 rounded-full ${valve.status ? 'status-dot-on' : ''}" style="background-color: ${!valve.status ? 'var(--border-color)' : ''};"></div>
+                                </div>
                             </div>
                             <p class="text-sm mb-3 h-5 truncate" style="color: color-mix(in srgb, var(--text-color) 70%, transparent);" title="${valve.note}">${valve.note || 'No note'}</p>
                             <button data-index="${index}" class="toggle-valve-btn btn w-full mb-2">Toggle ${valve.status ? 'OFF' : 'ON'}</button>
@@ -229,9 +241,14 @@
                         <h3 class="font-bold mb-4" style="color: color-mix(in srgb, var(--text-color) 80%, transparent);">Auxiliary Controls</h3>
                         <div class="grid grid-cols-2 gap-2">
                             ${state.auxControls.map((aux, index) => `
-                                <button data-index="${index}" class="toggle-aux-btn btn ${aux.status ? 'btn-accent' : ''} flex-col h-20">
-                                    <span>${aux.name}</span><span class="text-xs">(Pin ${aux.pin})</span>
-                                </button>
+                                <div class="relative">
+                                    <button data-index="${index}" class="toggle-aux-btn btn ${aux.status ? 'btn-accent' : ''} w-full h-20 flex flex-col justify-center items-center">
+                                        <span>${aux.name}</span><span class="text-xs">(Pin ${aux.pin})</span>
+                                    </button>
+                                    <button class="rename-btn absolute top-2 right-2 opacity-50 hover:opacity-100" data-type="aux" data-index="${index}" data-current-name="${aux.name}">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                                    </button>
+                                </div>
                             `).join('')}
                         </div>
                     </div>`;
@@ -277,6 +294,52 @@
                 logAction(`Configuration ${state.isLocked ? 'Locked' : 'Unlocked'}.`);
             };
 
+            const handleAddValves = () => {
+                if (state.isLocked) {
+                    alert("Configuration is locked. Cannot add new valves.");
+                    return;
+                }
+                const count = parseInt(addValvesInput.value) || 1;
+                for (let i = 0; i < count; i++) {
+                    const newValveNumber = state.valves.length + 1;
+                    state.valves.push({
+                        name: `New Valve ${newValveNumber}`,
+                        pin: 'N/A', // Pin would be assigned by the backend
+                        status: false,
+                        locked: false,
+                        icon: "💧",
+                        note: ""
+                    });
+                }
+                logAction(`Added ${count} new valve(s).`);
+                renderAll();
+            };
+
+            const handleRename = (type, index, currentName) => {
+                const newName = prompt(`Enter new name for "${currentName}":`, currentName);
+                if (newName && newName.trim() && newName.trim() !== currentName) {
+                    if (type === 'valve') {
+                        state.valves[index].name = newName.trim();
+                    } else if (type === 'aux') {
+                        state.auxControls[index].name = newName.trim();
+                    }
+                    logAction(`Renamed "${currentName}" to "${newName.trim()}".`);
+                    renderAll();
+                }
+            };
+            
+            const handleRemoveValve = (index, name) => {
+                if (state.isLocked) {
+                    alert("Configuration is locked. Cannot remove valves.");
+                    return;
+                }
+                if (confirm(`Are you sure you want to remove the valve "${name}"?`)) {
+                    state.valves.splice(index, 1);
+                    logAction(`Removed valve "${name}".`);
+                    renderAll();
+                }
+            };
+
             const openModal = (type) => {
                 modalTitle.textContent = {
                     scheduler: "Scheduler",
@@ -297,20 +360,24 @@
             // --- EVENT LISTENERS ---
             themeBtn.addEventListener('click', handleThemeToggle);
             lockBtn.addEventListener('click', handleLockToggle);
+            addValvesBtn.addEventListener('click', handleAddValves);
             modalCloseBtn.addEventListener('click', closeModal);
             document.querySelector('#emergency-stop-btn').addEventListener('click', () => {
-                state.valves.forEach(v => v.status = false);
+                state.valves.forEach(v => { v.status = false; v.startTime = null; });
                 state.auxControls.forEach(a => a.status = false);
                 logAction("EMERGENCY STOP ACTIVATED.");
                 renderAll();
             });
 
             document.body.addEventListener('click', (e) => {
-                if (e.target.closest('.modal-trigger')) {
-                    openModal(e.target.closest('.modal-trigger').dataset.modal);
+                const modalTrigger = e.target.closest('.modal-trigger');
+                if (modalTrigger) {
+                    openModal(modalTrigger.dataset.modal);
                 }
-                if (e.target.closest('.toggle-valve-btn')) {
-                    const index = parseInt(e.target.closest('.toggle-valve-btn').dataset.index);
+
+                const toggleValveBtn = e.target.closest('.toggle-valve-btn');
+                if (toggleValveBtn) {
+                    const index = parseInt(toggleValveBtn.dataset.index);
                     const valve = state.valves[index];
                     valve.status = !valve.status;
                     valve.startTime = valve.status ? Date.now() : null;
@@ -318,13 +385,27 @@
                     renderValves();
                     renderDashboard();
                 }
-                if (e.target.closest('.toggle-aux-btn')) {
-                    const index = parseInt(e.target.closest('.toggle-aux-btn').dataset.index);
+                
+                const toggleAuxBtn = e.target.closest('.toggle-aux-btn');
+                if (toggleAuxBtn) {
+                    const index = parseInt(toggleAuxBtn.dataset.index);
                     const aux = state.auxControls[index];
                     aux.status = !aux.status;
                     logAction(`Aux '${aux.name}' toggled ${aux.status ? 'ON' : 'OFF'}.`);
                     renderSidePanel();
                     renderDashboard();
+                }
+
+                const renameBtn = e.target.closest('.rename-btn');
+                if (renameBtn) {
+                    const { type, index, currentName } = renameBtn.dataset;
+                    handleRename(type, parseInt(index), currentName);
+                }
+
+                const removeValveBtn = e.target.closest('.remove-valve-btn');
+                if (removeValveBtn) {
+                    const { index, name } = removeValveBtn.dataset;
+                    handleRemoveValve(parseInt(index), name);
                 }
             });
 
