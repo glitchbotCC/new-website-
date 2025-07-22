@@ -7,6 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://rsms.me/">
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
     <style>
         :root {
             --font-sans: 'Inter', sans-serif;
@@ -154,7 +156,16 @@
             <main id="modal-content" class="p-6 overflow-y-auto"></main>
         </div>
     </div>
-
+    
+    <div>
+        <button onclick="connectMQTT()">Connect</button>
+        <button onclick="disconnectMQTT()">Disconnect</button>
+        <button onclick="subscribeMQTT()">Subscribe</button>
+        <button onclick="publishMQTT()">Ping (Publish)</button>
+        <div id="mqtt-status">Status: Disconnected</div>
+        <div id="mqtt-messages"></div>
+      </div>
+      
     <script>
         // --- APPLICATION LOGIC ---
         document.addEventListener('DOMContentLoaded', () => {
