@@ -575,6 +575,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // #################################################################
 
     /** Opens and populates the universal modal */
+    /** Opens and populates the universal modal */
     function openModal(type) {
         modalTitle.textContent = {
             scheduler: "📅 Master Scheduler",
@@ -592,62 +593,290 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'scheduler':
                 renderSchedulerModal();
                 break;
-            // Add cases for automation and settings here later
+            case 'automation':
+                renderAutomationModal();
+                break;
             default:
                 modalContent.innerHTML = `<p class="py-10 text-center" style="color: color-mix(in srgb, var(--text-color) 70%, transparent);">The UI for the ${type} feature is under construction.</p>`;
         }
         
         modalContainer.classList.remove('hidden');
     }
+
+    /** Renders the content for the Automation modal */
+    function renderAutomationModal() {
+        const itemsForTargeting = [...state.valves.map(v => `Valve: ${v.name}`), ...state.aux_controls.map(a => `Aux: ${a.name}`)];
+        const sensors = ["Soil Moisture", "Temp (DHT22)", "Humidity (DHT22)", "Temp (DHT11)", "Humidity (DHT11)"];
+
+        modalContent.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="card border rounded-lg p-4 space-y-4">
+                <h3 class="font-bold text-lg">Create New Rule</h3>
+                
+                <div class="p-3 rounded-md" style="background-color: var(--dark-bg);">
+                    <label class="font-bold text-lg block mb-2">IF (Trigger)</label>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="font-semibold text-sm">Sensor</label>
+                            <select id="auto-sensor" class="w-full p-2 rounded border mt-1">
+                                ${sensors.map(s => `<option value="${s}">${s}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div id="auto-condition-wrapper"></div>
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-md" style="background-color: var(--dark-bg);">
+                    <label class="font-bold text-lg block mb-2">THEN (Action)</label>
+                    <div class="space-y-3">
+                         <div>
+                            <label class="font-semibold text-sm">Action</label>
+                            <select id="auto-action" class="w-full p-2 rounded border mt-1">
+                                <option>Turn ON</option><option>Turn OFF</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="font-semibold text-sm">Target Device</label>
+                            <select id="auto-target" class="w-full p-2 rounded border mt-1">
+                                ${itemsForTargeting.map(t => `<option value="${t}">${t}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div id="auto-duration-wrapper">
+                            <label class="font-semibold text-sm">Duration (minutes)</label>
+                            <input type="number" id="auto-duration" value="10" min="1" class="w-full p-2 rounded border mt-1">
+                        </div>
+                    </div>
+                </div>
+                <button id="add-automation-btn" class="btn btn-accent w-full py-2 font-semibold border">Add Automation Rule</button>
+            </div>
+
+            <div class="card border rounded-lg p-4">
+                 <h3 class="font-bold text-lg mb-2">Active Rules</h3>
+                 <div id="automation-rules-list" class="max-h-96 overflow-y-auto text-sm space-y-2"></div>
+            </div>
+        </div>
+        `;
+
+        // --- LOGIC FOR THE AUTOMATION MODAL ---
+        const sensorSelect = getEl('auto-sensor');
+        const actionSelect = getEl('auto-action');
+        const addRuleBtn = getEl('add-automation-btn');
+        const rulesListEl = getEl('automation-rules-list');
+
+        const updateConditionUI = () => {
+            const sensor = sensorSelect.value;
+            const wrapper = getEl('auto-condition-wrapper');
+            if (sensor === 'Soil Moisture') {
+                wrapper.innerHTML = `
+                    <div>
+                        <label class="font-semibold text-sm">Condition</label>
+                        <select id="auto-value" class="w-full p-2 rounded border mt-1"><option>Dry</option><option>Wet</option></select>
+                    </div>`;
+            } else {
+                const unit = sensor.includes('Temp') ? '°C' : '%';
+                wrapper.innerHTML = `
+                    <div class="grid grid-cols-3 gap-2 items-end">
+                        <div>
+                            <label class="font-semibold text-sm">Condition</label>
+                            <select id="auto-condition" class="w-full p-2 rounded border mt-1"><option>&gt;</option><option>&lt;</option><option>==</option></select>
+                        </div>
+                        <div class="col-span-2">
+                             <label class="font-semibold text-sm">Value</label>
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="auto-value" value="25" class="w-full p-2 rounded border mt-1">
+                                <span class="font-bold text-lg">${unit}</span>
+                            </div>
+                        </div>
+                    </div>`;
+            }
+        };
+
+        const updateDurationUI = () => {
+            getEl('auto-duration-wrapper').style.display = actionSelect.value === 'Turn ON' ? 'block' : 'none';
+        };
+
+        sensorSelect.addEventListener('change', updateConditionUI);
+        actionSelect.addEventListener('change', updateDurationUI);
+
+        addRuleBtn.addEventListener('click', () => {
+            const rule = {
+                sensor: sensorSelect.value,
+                condition: getEl('auto-condition') ? getEl('auto-condition').value : 'is',
+                value: getEl('auto-value').value,
+                action: actionSelect.value,
+                target: getEl('auto-target').value,
+                duration_min: actionSelect.value === 'Turn ON' ? parseInt(getEl('auto-duration').value) : null,
+                last_triggered: null
+            };
+            publishCommand('add_automation_rule', rule);
+            showToast('Automation rule added!');
+        });
+        
+        // Render the list of current rules
+        if (state.automation_rules.length > 0) {
+            rulesListEl.innerHTML = state.automation_rules.map((rule, index) => `
+                <div class="p-2 rounded flex justify-between items-center" style="background-color: var(--dark-bg);">
+                    <span>${formatRuleForDisplay(rule)}</span>
+                    <button class="delete-automation-btn text-red-400 hover:text-red-300 font-bold px-2" data-index="${index}" title="Delete Rule">🗑️</button>
+                </div>
+            `).join('');
+        } else {
+             rulesListEl.innerHTML = `<p class="text-center py-4" style="color: color-mix(in srgb, var(--text-color) 70%, transparent);">No automation rules set.</p>`;
+        }
+        
+        // Initial UI setup
+        updateConditionUI();
+        updateDurationUI();
+    }
     
     /** Renders the content for the Scheduler modal */
     function renderSchedulerModal() {
-        // This is a simplified version. A full implementation would be more complex.
-        const itemsForScheduling = [...state.valves.map((v, i) => ({ type: 'valve', id: i, name: `Valve: ${v.name}` })), ...state.aux_controls.map((a, i) => ({ type: 'aux', id: i, name: `Aux: ${a.name}` }))];
+        const itemsForScheduling = [...state.valves.map((v, i) => ({ type: 'valve', index: i, name: `Valve: ${v.name}` })), ...state.aux_controls.map((a, i) => ({ type: 'aux', index: i, name: `Aux: ${a.name}` }))];
         
         modalContent.innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Schedule Creation Form -->
                 <div class="card border rounded-lg p-4 space-y-4">
                     <h3 class="font-bold text-lg">Add/Update Schedule</h3>
                     <div>
-                        <label class="font-semibold text-sm">Item to Schedule</label>
-                        <select id="schedule-item" class="w-full p-2 rounded border mt-1">
-                            ${itemsForScheduling.map(item => `<option value="${item.type}-${item.id}">${item.name}</option>`).join('')}
+                        <label class="font-semibold text-sm block mb-1">Item to Schedule</label>
+                        <select id="schedule-item-select" class="w-full p-2 rounded border">
+                            ${itemsForScheduling.map(item => `<option value="${item.type}-${item.index}">${item.name}</option>`).join('')}
                         </select>
                     </div>
-                    <!-- More form fields for time, action, etc. would go here -->
-                     <p class="text-xs text-center py-4" style="color: color-mix(in srgb, var(--text-color) 70%, transparent);">Full scheduling form under construction.</p>
-                     <button class="btn btn-accent w-full py-2 font-semibold border">Add Schedule</button>
+                    <div>
+                        <label class="font-semibold text-sm block mb-2">Schedule Type</label>
+                        <div class="flex gap-4">
+                           <label class="flex items-center gap-2"><input type="radio" name="schedule_type" value="Fixed Time" checked> Fixed Time</label>
+                           <label class="flex items-center gap-2"><input type="radio" name="schedule_type" value="Cycle"> Cycle/Interval</label>
+                        </div>
+                    </div>
+
+                    <div id="fixed-time-form" class="space-y-3 pt-2 border-t border-[var(--border-color)]">
+                        <div class="flex items-center gap-4">
+                           <label class="flex items-center gap-2"><input type="radio" name="schedule_action" value="ON" checked> Turn ON</label>
+                           <label class="flex items-center gap-2"><input type="radio" name="schedule_action" value="OFF"> Turn OFF</label>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                           <div>
+                               <label class="font-semibold text-sm block mb-1">Time (HH:MM)</label>
+                               <input type="time" id="fixed-time-input" class="w-full p-2 rounded border">
+                           </div>
+                           <div>
+                               <label class="font-semibold text-sm block mb-1">Preset</label>
+                               <select id="fixed-time-preset" class="w-full p-2 rounded border">
+                                   <option>Custom</option><option>Sunrise</option><option>Sunset</option>
+                               </select>
+                           </div>
+                        </div>
+                         <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="fixed-skip-rainy"> Skip if Rainy</label>
+                    </div>
+
+                    <div id="cycle-form" class="hidden space-y-3 pt-2 border-t border-[var(--border-color)]">
+                         <div class="grid grid-cols-3 gap-2">
+                            <div><label class="text-sm block mb-1">ON (min)</label><input type="number" id="cycle-on-min" value="5" class="w-full p-2 rounded border"></div>
+                            <div><label class="text-sm block mb-1">OFF (min)</label><input type="number" id="cycle-off-min" value="10" class="w-full p-2 rounded border"></div>
+                            <div><label class="text-sm block mb-1">Count</label><input type="number" id="cycle-count" value="3" class="w-full p-2 rounded border" title="0 for infinite"></div>
+                         </div>
+                         <div class="grid grid-cols-2 gap-4">
+                           <div>
+                               <label class="font-semibold text-sm block mb-1">Start Time</label>
+                               <input type="time" id="cycle-start-time" class="w-full p-2 rounded border">
+                           </div>
+                           <div>
+                               <label class="font-semibold text-sm block mb-1">Preset</label>
+                               <select id="cycle-time-preset" class="w-full p-2 rounded border">
+                                   <option>Custom</option><option>Sunrise</option><option>Sunset</option>
+                               </select>
+                           </div>
+                        </div>
+                        <label class="flex items-center gap-2 text-sm"><input type="checkbox" id="cycle-skip-rainy"> Skip if Rainy</label>
+                    </div>
+
+                    <button id="add-schedule-btn" class="btn btn-accent w-full py-2 font-semibold border">Add Schedule</button>
                 </div>
 
-                <!-- Current Schedules List -->
                 <div class="card border rounded-lg p-4">
                      <h3 class="font-bold text-lg mb-2">Current Schedules</h3>
-                     <div id="current-schedules-list" class="max-h-96 overflow-y-auto text-sm space-y-2">
-                        <!-- Schedules will be rendered here -->
-                     </div>
+                     <div id="current-schedules-list" class="max-h-96 overflow-y-auto text-sm space-y-2"></div>
                 </div>
             </div>`;
         
-        // Logic to render the list of current schedules
+        // --- LOGIC FOR THE SCHEDULER MODAL ---
+        
         const scheduleListEl = getEl('current-schedules-list');
+        const addScheduleBtn = getEl('add-schedule-btn');
+        const scheduleTypeRadios = document.querySelectorAll('input[name="schedule_type"]');
+        const fixedTimeForm = getEl('fixed-time-form');
+        const cycleForm = getEl('cycle-form');
+
+        const toggleFormView = () => {
+            const selectedType = document.querySelector('input[name="schedule_type"]:checked').value;
+            fixedTimeForm.classList.toggle('hidden', selectedType !== 'Fixed Time');
+            cycleForm.classList.toggle('hidden', selectedType !== 'Cycle');
+        };
+        scheduleTypeRadios.forEach(radio => radio.addEventListener('change', toggleFormView));
+        
+        addScheduleBtn.addEventListener('click', () => {
+            const [itemType, itemIndex] = getEl('schedule-item-select').value.split('-');
+            const scheduleType = document.querySelector('input[name="schedule_type"]:checked').value;
+            const scheduleDetails = {
+                type: scheduleType,
+                action: document.querySelector('input[name="schedule_action"]:checked').value,
+                time_str: getEl('fixed-time-input').value,
+                time_preset: getEl('fixed-time-preset').value,
+                skip_rainy: getEl('fixed-skip-rainy').checked,
+                cycle_on_min: getEl('cycle-on-min').value,
+                cycle_off_min: getEl('cycle-off-min').value,
+                cycle_count: getEl('cycle-count').value,
+                cycle_start_time: getEl('cycle-start-time').value,
+                cycle_start_preset: getEl('cycle-time-preset').value,
+                cycle_skip_rainy: getEl('cycle-skip-rainy').checked,
+            };
+            publishCommand('set_schedule', {
+                item_type: itemType,
+                item_idx: parseInt(itemIndex),
+                details: scheduleDetails
+            });
+            showToast('Schedule command sent!');
+        });
+
         const allSchedules = [...state.valves, ...state.aux_controls].flatMap(item => 
             (item.schedules || []).map(sched => ({...sched, itemName: item.name}))
         );
 
         if (allSchedules.length > 0) {
             scheduleListEl.innerHTML = allSchedules.map(sched => `
-                <div class="p-2 rounded" style="background-color: var(--dark-bg);">
-                    <p class="font-bold">${sched.itemName}</p>
-                    <p class="font-mono text-xs">${formatScheduleForDisplay(sched)}</p>
+                <div class="p-2 rounded flex justify-between items-center" style="background-color: var(--dark-bg);">
+                    <div>
+                        <p class="font-bold">${sched.itemName}</p>
+                        <p class="font-mono text-xs">${formatScheduleForDisplay(sched)}</p>
+                    </div>
+                    <button class="delete-schedule-btn text-red-400 hover:text-red-300 font-bold px-2" data-id="${sched.id}" title="Delete Schedule">🗑️</button>
                 </div>
             `).join('');
         } else {
             scheduleListEl.innerHTML = `<p class="text-center py-4" style="color: color-mix(in srgb, var(--text-color) 70%, transparent);">No schedules set.</p>`;
         }
+        toggleFormView();
     }
     
+    function formatRuleForDisplay(rule) {
+        let condition_str;
+        if (rule.sensor === "Soil Moisture") {
+            condition_str = `Soil Moisture is ${rule.value}`;
+        } else {
+            const unit = rule.sensor.includes("Temp") ? "°C" : "%";
+            condition_str = `${rule.sensor} ${rule.condition} ${rule.value}${unit}`;
+        }
+
+        let action_str = `${rule.action} ${rule.target}`;
+        if (rule.action === 'Turn ON' && rule.duration_min) {
+            action_str += ` for ${rule.duration_min} min`;
+        }
+
+        return `IF ${condition_str} THEN ${action_str}`;
+    }
+
     function formatScheduleForDisplay(schedule_obj) {
         let details = '';
         if (schedule_obj.type === 'Cycle') {
@@ -660,8 +889,44 @@ document.addEventListener('DOMContentLoaded', () => {
         return details;
     }
 
-    /** Closes the modal */
     const closeModal = () => modalContainer.classList.add('hidden');
+
+    /**
+     * Shows a toast notification.
+     * @param {string} message - The message to display.
+     * @param {boolean} isError - If true, shows a red error toast.
+     */
+    function showToast(message, isError = false) {
+        toast.textContent = message;
+        toast.style.backgroundColor = isError ? 'var(--error-color)' : 'var(--accent-color)';
+        toast.style.color = isError ? 'var(--light-accent-fg)' : 'var(--accent-fg-color)';
+        toast.classList.remove('opacity-0', 'translate-y-20');
+        setTimeout(() => {
+            toast.classList.add('opacity-0', 'translate-y-20');
+        }, 3000);
+    }
+    
+    // --- EVENT LISTENERS ---
+
+    // Add delegated event listeners for modal content
+    modalContent.addEventListener('click', (e) => {
+        const deleteSchedBtn = e.target.closest('.delete-schedule-btn');
+        if (deleteSchedBtn) {
+            const scheduleId = deleteSchedBtn.dataset.id;
+            if (confirm('Are you sure you want to delete this schedule?')) {
+                publishCommand('remove_schedule', { id: scheduleId });
+                showToast('Delete schedule command sent.');
+            }
+        }
+        const deleteAutoBtn = e.target.closest('.delete-automation-btn');
+        if (deleteAutoBtn) {
+            const ruleIndex = parseInt(deleteAutoBtn.dataset.index);
+             if (confirm('Are you sure you want to delete this automation rule?')) {
+                publishCommand('remove_automation_rule', { index: ruleIndex });
+                showToast('Delete automation rule command sent.');
+            }
+        }
+    });
 
 
     // #################################################################
