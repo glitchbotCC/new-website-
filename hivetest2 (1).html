@@ -306,8 +306,8 @@ document.addEventListener('DOMContentLoaded', () => {
             let cx = sumX / count, cy = sumY / count;
 
             return `
-                <g class="map-polygon cursor-pointer" onclick="publishCommand('toggle_valve', { index: ${index} })">
-                    <polygon points="${ptsString.trim()}" fill="${fillColor}" fill-opacity="${opacity}" stroke="${fillColor}" stroke-width="2"></polygon>
+                <g class="map-polygon cursor-pointer" data-valve-index="${index}">
+                    <polygon points="${ptsString.trim()}" fill="${fillColor}" fill-opacity="${opacity}" stroke="${fillColor}" stroke-width="2" style="pointer-events: all;"></polygon>
                     <text x="${cx}" y="${cy}" fill="white" font-size="12" font-weight="bold" text-anchor="middle" dominant-baseline="middle" pointer-events="none" style="text-shadow: 1px 1px 2px black;">${valve.name}</text>
                 </g>
             `;
@@ -316,9 +316,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Attempt to load the background image (requires image to be served over web locally)
         const imgSrc = "map_image.png"; 
 
+        const imgSrc = state.map_view_data.image_base64 || "map_image.png"; 
+
         mapContainer.innerHTML = `
-            <div class="relative inline-block" style="min-width: 100%; min-height: 100%;">
-                <img src="${imgSrc}" alt="Map Background" class="max-w-none block" style="width: 100%; height: auto; pointer-events: none;" onerror="this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='; this.parentElement.style.backgroundColor='#263238'; this.parentElement.style.minHeight='600px';">
+            <div class="relative inline-block" style="width: max-content; height: max-content;">
+                <img id="map-bg-img" src="${imgSrc}" alt="Map Background" class="block" style="pointer-events: none; transform-origin: top left;">
                 <svg class="absolute top-0 left-0 w-full h-full" style="pointer-events: none;">
                     <g style="pointer-events: auto;">
                         ${svgPolygons}
@@ -528,6 +530,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const tValveBtn = e.target.closest('.toggle-valve-btn');
         if (tValveBtn) publishCommand('toggle_valve', { index: parseInt(tValveBtn.dataset.index) });
+
+        // Catch clicks on Map Polygons
+        const mapPolygon = e.target.closest('.map-polygon');
+        if (mapPolygon) {
+            publishCommand('toggle_valve', { index: parseInt(mapPolygon.dataset.valveIndex) });
+        }
         
         const tAuxBtn = e.target.closest('.toggle-aux-btn');
         if (tAuxBtn) publishCommand('toggle_aux', { index: parseInt(tAuxBtn.dataset.index) });
@@ -568,3 +576,4 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
