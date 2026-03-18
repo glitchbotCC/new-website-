@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#111315">
+    <title>FLORA — Farm OS</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cabinet+Grotesk:wght@400;500;700;800;900&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+        :root {
+            --bg: #111315;
+            --bg2: #181a1d;
+            --bg3: #1f2226;
+            --card: #15181b;
+            --card2: #1c1f23;
+            --glow: #ff6d00;
+            --glow-dim: rgba(255, 109, 0, 0.1);
+            --glow-mid: rgba(255, 109, 0, 0.22);
+            --glow-bright: rgba(255, 109, 0, 0.45);
+            --glow-pulse: rgba(255, 109, 0, 0.6);
+            --violet: #00b0ff;
+            --violet-dim: rgba(0, 176, 255, 0.1);
+            --violet-mid: rgba(0, 176, 255, 0.22);
+            --red: #ff3b30;
+            --red-dim: rgba(255, 59, 48, 0.12);
+            --amber: #ffd60a;
+            --amber-dim: rgba(255, 214, 10, 0.1);
+            --border: rgba(255, 255, 255, 0.08);
+            --border-mid: rgba(255, 255, 255, 0.16);
+            --text: #e8eaed;
+            --text-dim: rgba(232, 234, 237, 0.5);
+            --text-faint: rgba(232, 234, 237, 0.2);
+            --heading: 'Cabinet Grotesk', sans-serif;
+            --body: 'Instrument Sans', sans-serif;
+            --nav-h: 72px;
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        html { height: 100%; background: var(--bg); }
+
+        body {
+            font-family: var(--body);
+            color: var(--text);
+            min-height: 100%;
+            background: var(--bg);
+            background-image:
+                radial-gradient(ellipse 60% 40% at 20% 80%, rgba(255,109,0,0.04) 0%, transparent 60%),
+                radial-gradient(ellipse 50% 35% at 80% 20%, rgba(0,176,255,0.03) 0%, transparent 60%);
+            padding-bottom: calc(var(--nav-h) + var(--safe-bottom));
+            overflow-x: hidden;
+        }
+
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-mid); border-radius: 2px; }
+
+        /* ══════════════════════════════════ */
+        /* KEYFRAMES                         */
+        /* ══════════════════════════════════ */
+        @keyframes shimmer { from{background-position:200% 0} to{background-position:-200% 0} }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:none} }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+        /* ══════════════════════════════════ */
+        /* APP SHELL                         */
+        /* ══════════════════════════════════ */
+        .app { max-width: 480px; margin: 0 auto; padding: 0; position: relative; }
+        @media (min-width: 768px) {
+            .app { max-width: 1400px; }
+            body { padding-bottom: 0; }
+        }
+
+        /* ══════════════════════════════════ */
+        /* TOP BAR (mobile)                  */
+        /* ══════════════════════════════════ */
+        .topbar {
+            position: sticky; top: 0; z-index: 50;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 20px;
+            background: rgba(17,19,21,0.85);
+            backdrop-filter: blur(20px) saturate(1.5);
+            -webkit-backdrop-filter: blur(20px) saturate(1.5);
+            border-bottom: 1px solid var(--border);
+        }
+        .topbar-brand {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .brand-orb {
+            width: 32px; height: 32px;
+            background: var(--glow-dim);
+            border: 1px solid var(--border-mid);
+            border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
+        .brand-text { font-family: var(--heading); font-size: 20px; font-weight: 900; color: var(--glow); letter-spacing: -0.5px; }
+        .brand-ver { font-size: 9px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; }
+
+        .topbar-right { display: flex; align-items: center; gap: 8px; }
+        .mqtt-orb {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--text-faint);
+            transition: background 0.3s;
+            flex-shrink: 0;
+        }
+        .mqtt-orb.on { background: var(--glow); }
+        .mqtt-orb.err { background: var(--red); }
+        .mqtt-text { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
+
+        .icon-btn {
+            width: 36px; height: 36px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; color: var(--text-dim); transition: all 0.15s;
+        }
+        .icon-btn:hover, .icon-btn:active { background: var(--card2); border-color: var(--border-mid); color: var(--text); }
+        .icon-btn.active { border-color: var(--glow); color: var(--glow); background: var(--glow-dim); }
+
+        /* ══════════════════════════════════ */
+        /* DESKTOP LAYOUT WRAPPER            */
+        /* ══════════════════════════════════ */
+        @media (min-width: 768px) {
+            .desktop-layout {
+                display: grid;
+                grid-template-columns: 240px 1fr 300px;
+                gap: 0;
+                min-height: 100vh;
+            }
+            .topbar { display: none; }
+            .bottom-nav { display: none !important; }
+        }
+
+        /* ══════════════════════════════════ */
+        /* DESKTOP SIDEBAR LEFT              */
+        /* ══════════════════════════════════ */
+        .desk-sidebar-left {
+            display: none;
+            flex-direction: column;
+            padding: 24px 0;
+            border-right: 1px solid var(--border);
+            background: var(--bg2);
+            position: sticky; top: 0; height: 100vh; overflow-y: auto;
+        }
+        @media (min-width: 768px) { .desk-sidebar-left { display: flex; } }
+
+        .desk-brand {
+            padding: 0 20px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        .desk-brand-row { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+        .desk-brand-orb {
+            width: 40px; height: 40px;
+            background: var(--glow-dim);
+            border: 1px solid var(--border-mid);
+            border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+        }
+        .desk-brand-name { font-family: var(--heading); font-size: 26px; font-weight: 900; color: var(--glow); letter-spacing: -1px; }
+        .desk-brand-sub { font-size: 9px; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; padding-left: 56px; margin-top: -4px; }
+
+        .desk-mqtt {
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 20px;
+            margin-bottom: 8px;
+        }
+        .desk-mqtt-orb {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--text-faint); transition: background 0.3s; flex-shrink: 0;
+        }
+        .desk-mqtt-orb.on { background: var(--glow); }
+        .desk-mqtt-orb.err { background: var(--red); }
+        .desk-mqtt-label { font-size: 11px; color: var(--text-dim); letter-spacing: 1px; }
+
+        .desk-nav { padding: 8px 12px; flex: 1; }
+        .desk-nav-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px; font-weight: 500;
+            color: var(--text-dim);
+            transition: all 0.15s;
+            margin-bottom: 2px;
+            border: 1px solid transparent;
+        }
+        .desk-nav-item:hover { background: var(--glow-dim); color: var(--text); border-color: var(--border); }
+        .desk-nav-item.active { background: var(--glow-dim); color: var(--glow); border-color: var(--border-mid);  }
+        .desk-nav-icon { font-size: 18px; width: 24px; text-align: center; }
+
+        .desk-nav-divider { height: 1px; background: var(--border); margin: 12px 16px; }
+
+        .desk-actions { padding: 12px; border-top: 1px solid var(--border); }
+        .desk-action-btn {
+            width: 100%;
+            display: flex; align-items: center; gap: 10px;
+            padding: 11px 16px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-dim);
+            font-family: var(--body);
+            font-size: 13px; font-weight: 500;
+            cursor: pointer; transition: all 0.15s;
+            margin-bottom: 6px; text-align: left;
+        }
+        .desk-action-btn:hover { background: var(--glow-dim); border-color: var(--border-mid); color: var(--glow); }
+        .desk-action-btn.danger:hover { background: var(--red-dim); border-color: var(--red); color: var(--red); }
+        .desk-theme-btn { display: flex; align-items: center; justify-content: space-between; }
+
+        /* ══════════════════════════════════ */
+        /* MAIN CONTENT AREA                 */
+        /* ══════════════════════════════════ */
+        .main-content {
+            padding: 0 0 16px;
+            min-height: 100vh;
+        }
+        @media (min-width: 768px) { .main-content { padding: 24px; border-right: 1px solid var(--border); } }
+
+        /* PAGE SECTIONS (shown/hidden by nav) */
+        .page { display: none; }
+        .page.active { display: block; animation: fadeUp 0.3s both; }
+
+        /* ══════════════════════════════════ */
+        /* DASHBOARD PAGE                    */
+        /* ══════════════════════════════════ */
+        .hero-section {
+            padding: 24px 20px 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        @media (min-width: 768px) { .hero-section { padding: 0 0 24px; } }
+
+        /* Decorative corner accent */
+        .hero-blob {
+            position: absolute; top: 0; right: 0;
+            width: 120px; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--glow-mid));
+            pointer-events: none;
+        }
+
+        .hero-greeting { font-size: 13px; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 4px; }
+        .hero-title { font-family: var(--heading); font-size: 30px; font-weight: 900; color: var(--text); line-height: 1.1; letter-spacing: -1px; }
+        .hero-title span { color: var(--glow); }
+        .hero-time { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+
+        /* STAT PILLS */
+        .stat-row {
+            display: grid; grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            padding: 0 20px 20px;
+        }
+        @media (min-width: 768px) { .stat-row { padding: 0 0 24px; grid-template-columns: repeat(3, 1fr); } }
+
+        .stat-pill {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 14px 14px 12px;
+            position: relative; overflow: hidden;
+            transition: all 0.2s;
+        }
+        .stat-pill:active {  }
+        .stat-pill::before {
+            content: '';
+            position: absolute; top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--glow), transparent);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .stat-pill:hover::before { opacity: 1; }
+        .stat-pill-icon { font-size: 20px; margin-bottom: 6px; }
+        .stat-pill-val { font-family: var(--heading); font-size: 26px; font-weight: 800; color: var(--text); line-height: 1; }
+        .stat-pill-val.green { color: var(--glow);  }
+        .stat-pill-val.violet { color: var(--violet);  }
+        .stat-pill-label { font-size: 10px; color: var(--text-dim); margin-top: 4px; letter-spacing: 0.5px; }
+
+        /* QUICK ACTIONS */
+        .section-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 20px 12px;
+        }
+        @media (min-width: 768px) { .section-header { padding: 0 0 12px; } }
+        .section-title { font-family: var(--heading); font-size: 18px; font-weight: 800; color: var(--text); }
+        .section-action { font-size: 12px; color: var(--glow); cursor: pointer; }
+
+        .quick-actions {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 10px; padding: 0 20px 20px;
+        }
+        @media (min-width: 768px) { .quick-actions { padding: 0 0 24px; grid-template-columns: repeat(4, 1fr); } }
+
+        .qa-btn {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 18px 16px;
+            cursor: pointer; color: var(--text);
+            transition: all 0.2s;
+            text-align: left;
+            font-family: var(--body);
+        }
+        .qa-btn:active {  }
+        .qa-btn:hover { background: var(--card2); border-color: var(--border-mid); }
+        .qa-icon { font-size: 24px; margin-bottom: 10px; display: block; }
+        .qa-label { font-size: 13px; font-weight: 600; color: var(--text); }
+        .qa-sub { font-size: 10px; color: var(--text-dim); margin-top: 3px; }
+        .qa-btn.danger { border-color: rgba(255,59,48,0.2); }
+        .qa-btn.danger:hover { background: var(--red-dim); border-color: var(--red); }
+
+        /* SENSOR STRIP */
+        .sensor-strip {
+            padding: 0 20px 20px;
+            overflow-x: auto;
+            display: flex; gap: 10px;
+            scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        .sensor-strip::-webkit-scrollbar { display: none; }
+        @media (min-width: 768px) { .sensor-strip { padding: 0 0 24px; flex-wrap: wrap; } }
+
+        .sensor-chip {
+            flex-shrink: 0;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 14px 16px;
+            min-width: 120px;
+        }
+        .sensor-chip-label { font-size: 9px; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px; }
+        .sensor-chip-val { font-family: var(--heading); font-size: 22px; font-weight: 800; color: var(--text); }
+        .sensor-chip-val.live { color: var(--glow);  }
+
+        /* WEATHER BANNER */
+        .weather-banner {
+            margin: 0 20px 20px;
+            background: linear-gradient(135deg, var(--card), var(--card2));
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            position: relative; overflow: hidden;
+        }
+        @media (min-width: 768px) { .weather-banner { margin: 0 0 24px; } }
+        .weather-banner::after {
+            content: '☁️';
+            position: absolute; right: -10px; top: -10px;
+            font-size: 80px; opacity: 0.05;
+            pointer-events: none;
+        }
+        .weather-label { font-size: 11px; color: var(--text-dim); letter-spacing: 1px; margin-bottom: 4px; }
+        .weather-val { font-family: var(--heading); font-size: 20px; font-weight: 800; color: var(--text); }
+        .weather-loc { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+        .sunrise-row { text-align: right; font-size: 11px; color: var(--text-dim); }
+        .sunrise-time { font-family: var(--heading); font-size: 16px; font-weight: 700; color: var(--amber); }
+
+        /* ══════════════════════════════════ */
+        /* VALVES PAGE                       */
+        /* ══════════════════════════════════ */
+        .valves-header {
+            padding: 20px 20px 16px;
+            position: sticky; top: 0; z-index: 10;
+            background: rgba(17,19,21,0.9);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+        @media (min-width: 768px) { .valves-header { padding: 0 0 16px; position: relative; background: transparent; backdrop-filter: none; } }
+
+        .valves-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .valves-title { font-family: var(--heading); font-size: 22px; font-weight: 900; }
+        .add-valve-row { display: flex; align-items: center; gap: 8px; }
+        .qty-input {
+            width: 56px; padding: 8px 10px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            font-family: var(--heading);
+            font-size: 16px; font-weight: 700;
+            text-align: center; outline: none;
+        }
+        .qty-input:focus { border-color: var(--glow); }
+
+        .search-bar {
+            display: flex; align-items: center; gap: 10px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 10px 16px;
+        }
+        .search-bar:focus-within { border-color: var(--border-mid);  }
+        .search-bar svg { color: var(--text-dim); flex-shrink: 0; }
+        .search-bar input {
+            flex: 1; background: transparent; border: none; outline: none;
+            color: var(--text); font-family: var(--body); font-size: 14px;
+        }
+        .search-bar input::placeholder { color: var(--text-dim); }
+
+        /* VALVE LIST */
+        .valve-list { padding: 0 20px; display: flex; flex-direction: column; gap: 12px; }
+        @media (min-width: 768px) {
+            .valve-list {
+                padding: 0;
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+                gap: 14px;
+            }
+        }
+
+        /* VALVE CARD */
+        .valve-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 18px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.25s;
+            animation: fadeUp 0.3s both;
+        }
+        .valve-card:active {  }
+        @media (min-width: 768px) { .valve-card:hover { border-color: var(--border-mid); } }
+
+        .valve-card.on {
+            border-color: rgba(255,109,0,0.3);
+            background: linear-gradient(135deg, var(--card), rgba(255,109,0,0.03));
+            animation: fadeUp 0.3s both;
+        }
+        .valve-card.locked { border-color: rgba(255,59,48,0.2); }
+
+        /* Status bar at bottom of active card */
+        .valve-fill-bar {
+            position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+            background: var(--glow);
+            transform-origin: left;
+            transform: scaleX(0);
+            transition: transform 0.6s ease;
+            opacity: 0.5;
+        }
+        .valve-card.on .valve-fill-bar { transform: scaleX(1); }
+
+        .valve-card-top {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 14px;
+        }
+        .valve-left { display: flex; align-items: center; gap: 12px; }
+        .valve-emoji {
+            width: 40px; height: 40px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .valve-card.on .valve-emoji {
+            border-color: var(--border-mid);
+            background: var(--glow-dim);
+        }
+        .valve-name { font-family: var(--heading); font-size: 16px; font-weight: 800; color: var(--text); margin-bottom: 2px; }
+        .valve-pin { font-size: 11px; color: var(--text-dim); }
+
+        /* Status badge */
+        .v-badge {
+            display: flex; align-items: center; gap: 6px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px; font-weight: 600;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            background: var(--bg2);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .v-badge.on { border-color: rgba(255,109,0,0.4); color: var(--glow); background: var(--glow-dim); }
+        .v-badge.locked { border-color: rgba(255,59,48,0.4); color: var(--red); background: var(--red-dim); }
+        .v-badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+        .valve-note {
+            font-size: 12px; color: var(--text-dim);
+            padding: 8px 12px;
+            background: var(--bg2);
+            border-radius: 4px;
+            margin-bottom: 12px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            border: 1px solid var(--border);
+        }
+        .valve-timer {
+            font-size: 12px; color: var(--glow);
+            font-weight: 600; min-height: 18px;
+            margin-bottom: 12px; letter-spacing: 0.5px;
+        }
+
+        /* TOGGLE BUTTON — big, satisfying, mobile-friendly */
+        .v-toggle {
+            width: 100%;
+            padding: 14px;
+            border-radius: 4px;
+            background: var(--bg2);
+            border: 1.5px solid var(--border);
+            color: var(--text);
+            font-family: var(--heading);
+            font-size: 15px; font-weight: 800;
+            cursor: pointer; transition: all 0.2s;
+            letter-spacing: 0.5px;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .v-toggle:active {  }
+        .v-toggle:disabled { opacity: 0.25; cursor: not-allowed; }
+        .v-toggle:not(:disabled):hover { border-color: var(--border-mid); }
+        .v-toggle.on-state {
+            background: var(--glow-dim);
+            border-color: rgba(255,109,0,0.5);
+            color: var(--glow);
+        }
+        .v-toggle.on-state:not(:disabled):hover {
+            background: var(--red-dim);
+            border-color: rgba(255,59,48,0.5);
+            color: var(--red);
+        }
+
+        .v-actions {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 6px; padding-top: 12px;
+            border-top: 1px solid var(--border); margin-top: 12px;
+        }
+        .v-act {
+            padding: 9px 0;
+            background: var(--bg2); border: 1px solid var(--border);
+            border-radius: 4px; color: var(--text-dim);
+            font-size: 14px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.15s; min-height: 40px;
+        }
+        .v-act:active {  }
+        .v-act:hover { background: var(--glow-dim); border-color: var(--border-mid); color: var(--glow); }
+        .v-act.danger:hover { background: var(--red-dim); border-color: rgba(255,59,48,0.4); color: var(--red); }
+
+        /* ══════════════════════════════════ */
+        /* DESKTOP RIGHT PANEL               */
+        /* ══════════════════════════════════ */
+        .desk-right {
+            display: none;
+            flex-direction: column;
+            padding: 24px;
+            background: var(--bg2);
+            overflow-y: auto;
+            position: sticky; top: 0; height: 100vh;
+        }
+        @media (min-width: 768px) { .desk-right { display: flex; } }
+
+        .right-section { margin-bottom: 24px; }
+        .right-title { font-family: var(--heading); font-size: 14px; font-weight: 800; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+
+        /* AUX */
+        .aux-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .aux-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 14px 12px;
+            cursor: pointer; text-align: center;
+            transition: all 0.2s; position: relative;
+        }
+        .aux-card:hover { border-color: var(--border-mid); }
+        .aux-card:active {  }
+        .aux-card.on { background: var(--glow-dim); border-color: rgba(255,109,0,0.4); }
+        .aux-name { font-family: var(--heading); font-size: 13px; font-weight: 700; color: var(--text); }
+        .aux-pin { font-size: 9px; color: var(--text-dim); letter-spacing: 1px; margin-top: 3px; }
+        .aux-ren { position: absolute; top: 5px; right: 6px; background: none; border: none; cursor: pointer; color: var(--text-faint); font-size: 10px; }
+        .aux-ren:hover { color: var(--text-dim); }
+
+        /* SENSORS right panel */
+        .sensor-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+        .sensor-item:last-child { border-bottom: none; }
+        .sensor-key { font-size: 11px; color: var(--text-dim); max-width: 55%; line-height: 1.4; }
+        .sensor-val { font-family: var(--heading); font-size: 20px; font-weight: 800; color: var(--text); }
+        .sensor-val.live { color: var(--glow);  }
+
+        /* MOBILE AUX & SENSORS (inside pages) */
+        .mobile-aux-page, .mobile-more-page { padding: 20px; }
+        .mobile-section-title { font-family: var(--heading); font-size: 22px; font-weight: 900; margin-bottom: 16px; }
+        .mobile-aux-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+        .mobile-aux-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 20px 16px;
+            cursor: pointer; text-align: center;
+            transition: all 0.2s; position: relative;
+            min-height: 90px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .mobile-aux-card:active {  }
+        .mobile-aux-card.on { background: var(--glow-dim); border-color: rgba(255,109,0,0.4); }
+        .mobile-aux-name { font-family: var(--heading); font-size: 15px; font-weight: 800; }
+        .mobile-aux-pin { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; margin-top: 4px; }
+
+        .mobile-sensor-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 16px;
+            margin-bottom: 10px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .msensor-k { font-size: 12px; color: var(--text-dim); }
+        .msensor-v { font-family: var(--heading); font-size: 24px; font-weight: 800; }
+        .msensor-v.live { color: var(--glow); }
+
+        /* MORE PAGE */
+        .more-btn {
+            width: 100%;
+            display: flex; align-items: center; gap: 14px;
+            padding: 16px 18px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            font-family: var(--body);
+            font-size: 15px; font-weight: 500;
+            cursor: pointer; transition: all 0.15s;
+            margin-bottom: 10px; text-align: left;
+        }
+        .more-btn:active {  background: var(--card2); }
+        .more-btn-icon { font-size: 20px; width: 28px; }
+        .more-btn.danger { border-color: rgba(255,59,48,0.2); color: var(--red); }
+        .more-btn.danger:active { background: var(--red-dim); }
+
+        /* ══════════════════════════════════ */
+        /* BOTTOM NAV (mobile only)          */
+        /* ══════════════════════════════════ */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            z-index: 100;
+            background: rgba(24,26,29,0.95);
+            backdrop-filter: blur(20px) saturate(1.5);
+            -webkit-backdrop-filter: blur(20px) saturate(1.5);
+            border-top: 1px solid var(--border);
+            padding-bottom: var(--safe-bottom);
+            display: flex;
+        }
+        .nav-item {
+            flex: 1;
+            display: flex; flex-direction: column; align-items: center;
+            padding: 10px 0 12px;
+            cursor: pointer; transition: all 0.15s;
+            color: var(--text-dim);
+            border: none; background: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .nav-icon { font-size: 22px; margin-bottom: 4px; transition: transform 0.2s; }
+        .nav-label { font-size: 10px; font-weight: 600; letter-spacing: 0.3px; }
+        .nav-item.active { color: var(--glow); }
+        .nav-item.active .nav-icon { opacity: 1; }
+
+        /* ══════════════════════════════════ */
+        /* MODAL (sheet on mobile)           */
+        /* ══════════════════════════════════ */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 200;
+            display: flex; align-items: flex-end;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.25s;
+        }
+        @media (min-width: 768px) { .modal-overlay { align-items: center; justify-content: center; } }
+        .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+        .modal-sheet {
+            width: 100%;
+            background: var(--bg2);
+            border-top: 1px solid var(--border-mid);
+            border-left: 1px solid var(--border-mid);
+            border-right: 1px solid var(--border-mid);
+            border-radius: 0;
+            max-height: 90vh;
+            display: flex; flex-direction: column;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            overflow: hidden;
+        }
+        @media (min-width: 768px) {
+            .modal-sheet {
+                border-radius: 4px;
+                max-width: 820px;
+                max-height: 85vh;
+                border: 1px solid var(--border-mid);
+                transform: translateY(10px);
+                opacity: 0;
+                transition: transform 0.2s ease, opacity 0.2s ease;
+            }
+        }
+        .modal-overlay.open .modal-sheet {
+            transform: translateY(0);
+        }
+        @media (min-width: 768px) { .modal-overlay.open .modal-sheet { transform: none; opacity: 1; } }
+
+        .modal-handle {
+            width: 40px; height: 4px;
+            background: var(--border-mid);
+            border-radius: 2px;
+            margin: 12px auto 0;
+            flex-shrink: 0;
+        }
+        @media (min-width: 768px) { .modal-handle { display: none; } }
+
+        .modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 20px 14px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .modal-title { font-family: var(--heading); font-size: 20px; font-weight: 900; color: var(--text); }
+        .modal-close {
+            width: 32px; height: 32px;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 4px; color: var(--text-dim);
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 16px; transition: all 0.15s;
+        }
+        .modal-close:hover { background: var(--red-dim); border-color: rgba(255,59,48,0.4); color: var(--red); }
+
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1; -webkit-overflow-scrolling: touch; }
+
+        /* MODAL FORM */
+        .m2col { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        @media (min-width: 600px) { .m2col { grid-template-columns: 1fr 1fr; } }
+        .m-label { font-size: 10px; color: var(--text-dim); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px; display: block; }
+        .m-section-tag {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 12px;
+            background: var(--glow-dim); border: 1px solid rgba(255,109,0,0.2);
+            border-radius: 4px; font-size: 11px; font-weight: 600;
+            color: var(--glow); margin-bottom: 14px;
+        }
+        .m-section-tag.violet { background: var(--violet-dim); border-color: rgba(0,176,255,0.2); color: var(--violet); }
+        .fgrp { margin-bottom: 14px; }
+        .fctl {
+            width: 100%; padding: 12px 14px;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 4px; color: var(--text);
+            font-family: var(--body); font-size: 14px; outline: none;
+            transition: all 0.15s;
+            -webkit-appearance: none;
+        }
+        .fctl:focus { border-color: var(--border-mid);  }
+        .radio-row { display: flex; gap: 8px; flex-wrap: wrap; }
+        .rchip {
+            display: flex; align-items: center; gap: 6px;
+            padding: 9px 16px;
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: 4px; font-size: 13px; font-weight: 600;
+            cursor: pointer; transition: all 0.15s; color: var(--text-dim);
+        }
+        .rchip:has(input:checked) { border-color: rgba(255,109,0,0.4); color: var(--glow); background: var(--glow-dim); }
+        .rchip input { display: none; }
+        .chk { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text-dim); }
+        .chk input[type=checkbox] { appearance: none; width: 18px; height: 18px; border: 1.5px solid var(--border); border-radius: 4px; background: var(--card); cursor: pointer; position: relative; transition: all 0.15s; flex-shrink: 0; }
+        .chk input:checked { background: var(--glow); border-color: var(--glow); }
+        .chk input:checked::after { content:'✓'; position:absolute; top:-2px; left:2px; font-size:12px; color:#000; font-weight:bold; }
+
+        .list-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--card); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 8px; }
+        .li-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+        .li-sub { font-size: 11px; color: var(--text-dim); }
+        .x-btn { width: 30px; height: 30px; background: transparent; border: 1px solid var(--border); border-radius: 4px; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; transition: all 0.15s; flex-shrink: 0; }
+        .x-btn:hover { background: var(--red-dim); border-color: rgba(255,59,48,0.4); color: var(--red); }
+
+        .logs-box { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 16px; font-family: monospace; font-size: 11px; color: var(--glow); line-height: 2; max-height: 50vh; overflow-y: auto; }
+
+        /* TOAST */
+        .toast {
+            position: fixed; bottom: calc(var(--nav-h) + 16px + var(--safe-bottom)); left: 16px; right: 16px;
+            padding: 14px 20px;
+            background: var(--card2);
+            border: 1px solid var(--border-mid);
+            border-radius: 4px;
+            font-size: 14px; font-weight: 600;
+            color: var(--glow);
+            
+            transform: translateY(20px); opacity: 0;
+            transition: all 0.35s cubic-bezier(0.34,1.56,0.64,1);
+            z-index: 300; pointer-events: none;
+            display: flex; align-items: center; gap: 10px;
+        }
+        @media (min-width: 768px) { .toast { bottom: 24px; left: auto; right: 24px; max-width: 320px; } }
+        .toast.err { color: var(--red); border-color: rgba(255,59,48,0.4);  }
+        .toast.show { transform: translateY(0); opacity: 1; }
+
+        /* SKEL */
+        .skel { background: linear-gradient(90deg, var(--card2) 25%, rgba(255,109,0,0.04) 50%, var(--card2) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; }
+
+        /* EMPTY */
+        .empty-state { padding: 48px 20px; text-align: center; color: var(--text-dim); }
+        .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.3; display: block; }
+        .empty-text { font-family: var(--heading); font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+        .empty-sub { font-size: 13px; }
+
+        /* LIGHT MODE */
+        body.light {
+            --bg: #eceff1;
+            --bg2: #e2e6e9;
+            --bg3: #cfd4d9;
+            --card: #f8f9fa;
+            --card2: #eef1f4;
+            --glow: #e65100;
+            --glow-dim: rgba(230, 81, 0, 0.08);
+            --glow-mid: rgba(230, 81, 0, 0.18);
+            --glow-bright: rgba(230, 81, 0, 0.35);
+            --glow-pulse: rgba(230, 81, 0, 0.5);
+            --violet: #0277bd;
+            --violet-dim: rgba(2, 119, 189, 0.08);
+            --violet-mid: rgba(2, 119, 189, 0.18);
+            --red: #d32f2f;
+            --red-dim: rgba(211, 47, 47, 0.08);
+            --amber: #f57f17;
+            --amber-dim: rgba(245, 127, 23, 0.08);
+            --border: rgba(0, 0, 0, 0.1);
+            --border-mid: rgba(0, 0, 0, 0.2);
+            --text: #202124;
+            --text-dim: rgba(32, 33, 36, 0.6);
+            --text-faint: rgba(32, 33, 36, 0.25);
+            background-color: var(--bg);
+        }
+        body.light { background-image: radial-gradient(ellipse 60% 40% at 20% 80%, rgba(230,81,0,0.04) 0%, transparent 60%), radial-gradient(ellipse 50% 35% at 80% 20%, rgba(2,119,189,0.02) 0%, transparent 60%); }
+        body.light .topbar, body.light .valves-header { background: rgba(236,239,241,0.9); }
+        body.light .bottom-nav { background: rgba(226,230,233,0.95); border-color: rgba(0,0,0,0.1); }
+        body.light .modal-overlay { background: rgba(0,0,0,0.4); }
+        body.light .modal-sheet { background: var(--bg2); border-color: var(--border-mid); }
+        body.light .toast { background: var(--card);  }
+
+        /* transitions */
+        body, .topbar, .bottom-nav, .valve-card, .stat-pill, .qa-btn,
+        .sensor-chip, .weather-banner, .aux-card, .mobile-aux-card,
+        .modal-sheet, .more-btn, .desk-sidebar-left, .desk-right,
+        .desk-nav-item, .icon-btn { transition: background-color 0.3s, border-color 0.3s, color 0.3s, box-shadow 0.3s; }
+    </style>
+</head>
+<body>
+<div class="bottom-nav" id="bottom-nav">
+    <button class="nav-item active" data-page="dash">
+        <div class="nav-icon">🌿</div>
+        <div class="nav-label">Home</div>
+    </button>
+    <button class="nav-item" data-page="valves">
+        <div class="nav-icon">💧</div>
+        <div class="nav-label">Valves</div>
+    </button>
+    <button class="nav-item" data-page="controls">
+        <div class="nav-icon">⚡</div>
+        <div class="nav-label">Controls</div>
+    </button>
+    <button class="nav-item" data-page="more">
+        <div class="nav-icon">⋯</div>
+        <div class="nav-label">More</div>
+    </button>
+</div>
+
+<div class="desktop-layout">
+
+    <nav class="desk-sidebar-left">
+        <div class="desk-brand">
+            <div class="desk-brand-row">
+                <div class="desk-brand-orb">🌿</div>
+                <div class="desk-brand-name">FLORA</div>
+            </div>
+            <div class="desk-brand-sub">Farm OS · v4.0</div>
+        </div>
+
+        <div class="desk-mqtt" id="desk-mqtt-row">
+            <div class="desk-mqtt-orb" id="desk-mqtt-orb"></div>
+            <span class="desk-mqtt-label" id="desk-mqtt-label">Offline</span>
+        </div>
+
+        <div class="desk-nav">
+            <div class="desk-nav-item active" data-page="dash">
+                <div class="desk-nav-icon">🌿</div> Home
+            </div>
+            <div class="desk-nav-item" data-page="valves">
+                <div class="desk-nav-icon">💧</div> Valves
+            </div>
+            <div class="desk-nav-item" data-page="controls">
+                <div class="desk-nav-icon">⚡</div> Aux Controls
+            </div>
+            <div class="desk-nav-divider"></div>
+            <div class="desk-nav-item modal-trigger" data-modal="scheduler">
+                <div class="desk-nav-icon">📅</div> Scheduler
+            </div>
+            <div class="desk-nav-item modal-trigger" data-modal="automation">
+                <div class="desk-nav-icon">🤖</div> Automation
+            </div>
+            <div class="desk-nav-item modal-trigger" data-modal="logs">
+                <div class="desk-nav-icon">📋</div> System Logs
+            </div>
+        </div>
+
+        <div class="desk-actions">
+            <button class="desk-action-btn desk-theme-btn" id="desk-theme-btn">
+                <span>🌙</span><span id="desk-theme-label">Dark Mode</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2"/></svg>
+            </button>
+            <button class="desk-action-btn" id="desk-lock-btn" onclick="window._lockClick()">
+                <span>🔒</span><span id="desk-lock-label">Lock Config</span>
+            </button>
+            <button class="desk-action-btn danger" id="desk-emergency">
+                <span>🚨</span> Emergency Stop
+            </button>
+        </div>
+    </nav>
+
+    <main class="main-content">
+
+        <div class="topbar">
+            <div class="topbar-brand">
+                <div class="brand-orb">🌿</div>
+                <div>
+                    <div class="brand-text">FLORA</div>
+                    <div class="brand-ver">Farm OS</div>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <div class="mqtt-orb" id="mqtt-orb"></div>
+                <div class="mqtt-text" id="mqtt-text">–</div>
+                <button class="icon-btn" id="theme-btn" title="Theme">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>
+                </button>
+                <button class="icon-btn modal-trigger" data-modal="logs" title="Logs">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="page active" id="page-dash">
+            <div class="hero-section">
+                <div class="hero-blob"></div>
+                <div class="hero-greeting">Good day, Farmer</div>
+                <div class="hero-title">Your Farm is <span id="hero-status-word">Loading</span></div>
+                <div class="hero-time" id="hero-time">–</div>
+            </div>
+
+            <div class="stat-row" id="dashboard"></div>
+
+            <div class="section-header">
+                <div class="section-title">Quick Actions</div>
+            </div>
+            <div class="quick-actions">
+                <button class="qa-btn modal-trigger" data-modal="scheduler">
+                    <span class="qa-icon">📅</span>
+                    <div class="qa-label">Scheduler</div>
+                    <div class="qa-sub">Set irrigation times</div>
+                </button>
+                <button class="qa-btn modal-trigger" data-modal="automation">
+                    <span class="qa-icon">🤖</span>
+                    <div class="qa-label">Automation</div>
+                    <div class="qa-sub">Sensor-triggered rules</div>
+                </button>
+                <button class="qa-btn" id="mob-lock-btn" onclick="window._lockClick()">
+                    <span class="qa-icon" id="mob-lock-icon">🔒</span>
+                    <div class="qa-label" id="mob-lock-label">Lock Config</div>
+                    <div class="qa-sub">Prevent changes</div>
+                </button>
+                <button class="qa-btn danger" id="mob-emergency">
+                    <span class="qa-icon">🚨</span>
+                    <div class="qa-label">Emergency</div>
+                    <div class="qa-sub">All systems OFF</div>
+                </button>
+            </div>
+
+            <div class="section-header">
+                <div class="section-title">Live Sensors</div>
+            </div>
+            <div class="sensor-strip" id="sensor-strip-home"></div>
+
+            <div class="weather-banner" id="weather-banner">
+                <div>
+                    <div class="weather-label">CURRENT CONDITIONS</div>
+                    <div class="weather-val" id="wb-weather">Fetching...</div>
+                    <div class="weather-loc" id="wb-loc">–</div>
+                </div>
+                <div class="sunrise-row">
+                    <div style="font-size:10px;color:var(--text-dim);margin-bottom:4px;">SUNRISE / SET</div>
+                    <div class="sunrise-time" id="wb-sun">– / –</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="page" id="page-valves">
+            <div class="valves-header">
+                <div class="valves-top">
+                    <div class="valves-title">Valves</div>
+                    <div class="add-valve-row">
+                        <input type="number" id="add-valves-input" value="1" min="1" class="qty-input">
+                        <button id="add-valves-btn" style="padding:10px 16px;background:var(--glow-dim);border:1.5px solid rgba(255,109,0,0.4);border-radius:12px;color:var(--glow);font-family:var(--heading);font-size:14px;font-weight:800;cursor:pointer;">+ Add</button>
+                    </div>
+                </div>
+                <div class="search-bar">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <input type="search" id="search-input" placeholder="Search valves...">
+                </div>
+            </div>
+            <div class="valve-list" id="valve-grid">
+                <div class="valve-card"><div class="skel" style="height:24px;width:50%;margin-bottom:10px;"></div><div class="skel" style="height:12px;width:30%;margin-bottom:14px;"></div><div class="skel" style="height:44px;"></div></div>
+                <div class="valve-card"><div class="skel" style="height:24px;width:50%;margin-bottom:10px;"></div><div class="skel" style="height:12px;width:30%;margin-bottom:14px;"></div><div class="skel" style="height:44px;"></div></div>
+            </div>
+        </div>
+
+        <div class="page" id="page-controls">
+            <div class="mobile-aux-page">
+                <div class="mobile-section-title">Aux Controls</div>
+                <div class="mobile-aux-grid" id="mobile-aux-grid">
+                    <div style="grid-column:span 2;text-align:center;padding:32px;color:var(--text-dim);font-size:13px;">Loading...</div>
+                </div>
+                <div class="mobile-section-title">Sensor Data</div>
+                <div id="mobile-sensors"></div>
+            </div>
+        </div>
+
+        <div class="page" id="page-more">
+            <div class="mobile-more-page">
+                <div class="mobile-section-title">System</div>
+                <button class="more-btn modal-trigger" data-modal="scheduler">
+                    <span class="more-btn-icon">📅</span> Scheduler
+                    <svg style="margin-left:auto;color:var(--text-dim);" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+                <button class="more-btn modal-trigger" data-modal="automation">
+                    <span class="more-btn-icon">🤖</span> Automation Rules
+                    <svg style="margin-left:auto;color:var(--text-dim);" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+                <button class="more-btn modal-trigger" data-modal="logs">
+                    <span class="more-btn-icon">📋</span> System Logs
+                    <svg style="margin-left:auto;color:var(--text-dim);" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+                <button class="more-btn" onclick="window._lockClick()">
+                    <span class="more-btn-icon" id="more-lock-icon">🔒</span> <span id="more-lock-label">Lock Config</span>
+                    <svg style="margin-left:auto;color:var(--text-dim);" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+                <button class="more-btn" id="more-theme-btn">
+                    <span class="more-btn-icon">🌙</span> <span id="more-theme-label">Dark Mode</span>
+                    <svg style="margin-left:auto;color:var(--text-dim);" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+                </button>
+                <button class="more-btn danger" id="more-emergency">
+                    <span class="more-btn-icon">🚨</span> Emergency Stop All
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <aside class="desk-right">
+        <div class="right-section">
+            <div class="right-title">Aux Controls</div>
+            <div class="aux-grid" id="desk-aux-grid">
+                <div style="grid-column:span 2;text-align:center;padding:20px;font-size:12px;color:var(--text-dim);">Waiting for data...</div>
+            </div>
+        </div>
+        <div class="right-section">
+            <div class="right-title">Sensor Array</div>
+            <div id="desk-sensors"></div>
+        </div>
+    </aside>
+</div>
+
+<div id="modal-container" class="modal-overlay">
+    <div class="modal-sheet">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+            <div id="modal-title" class="modal-title">Title</div>
+            <button id="modal-close-btn" class="modal-close">✕</button>
+        </div>
+        <div id="modal-content" class="modal-body"></div>
+    </div>
+</div>
+
+<div id="toast" class="toast">
+    <span id="toast-icon">✓</span>
+    <span id="toast-msg">Done</span>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    let state = {
+        valves: [], aux_controls: [], automation_rules: [], schedule_history: [],
+        logs: [], map_view_data: { sections: [] },
+        settings: { location: 'Unknown', virtual_sunrise_time: '06:00', virtual_sunset_time: '18:30', enable_rain_skip: true, config_locked: false },
+        sensors: { 'Temp (DHT22)': 'N/A', 'Humidity (DHT22)': 'N/A', 'Temp (DHT11)': 'N/A', 'Humidity (DHT11)': 'N/A', 'Soil Moisture': 'N/A' },
+        live_weather: 'Fetching...', system_time: '--:--:--'
+    };
+
+    const $ = id => document.getElementById(id);
+    let activeTab = 'card';
+
+    // MQTT
+    const MQTT_BROKER = 'wss://10c4099f97f641fbab2858a037337cbd.s1.eu.hivemq.cloud:8884/mqtt';
+    const MQTT_OPTIONS = { clientId: 'flora-' + Math.random().toString(16).substr(2, 8), username: 'glitchbothive', password: 'hive1Aaa', clean: true, reconnectPeriod: 2000 };
+    const TOPICS = { CMD: 'smartfarm/web/command', STATE: 'smartfarm/pi/state', SYNC: 'smartfarm/system/sync' };
+
+    const client = mqtt.connect(MQTT_BROKER, MQTT_OPTIONS);
+    client.on('connect', () => {
+        setMqttStatus('on', 'Live');
+        client.subscribe(TOPICS.STATE);
+        pub(TOPICS.SYNC, { action: 'request_sync', from: MQTT_OPTIONS.clientId });
+    });
+    client.on('error', () => setMqttStatus('err', 'Error'));
+    client.on('close', () => setMqttStatus('', 'Offline'));
+    client.on('message', (topic, msg) => {
+        try { if (topic === TOPICS.STATE) { Object.assign(state, JSON.parse(msg.toString())); renderAll(); } } catch(e) {}
+    });
+
+    function setMqttStatus(cls, label) {
+        ['mqtt-orb', 'desk-mqtt-orb'].forEach(id => { const el = $(id); if(el) el.className = `${el.className.split(' ')[0]}${cls ? ' '+cls : ''}`; });
+        if($('mqtt-text')) $('mqtt-text').textContent = label;
+        if($('desk-mqtt-label')) $('desk-mqtt-label').textContent = label;
+    }
+
+    function cmd(command, data) { pub(TOPICS.CMD, { command, data, timestamp: Date.now() }); }
+    function pub(topic, payload) { if (client?.connected) client.publish(topic, JSON.stringify(payload)); }
+
+    window._lockClick = () => {
+        if (state.settings.config_locked) { const p = prompt('Enter unlock password:'); if (p) cmd('toggle_lock', { password: p }); }
+        else cmd('toggle_lock', {});
+    };
+
+    function renderAll() {
+        renderDashboard(); renderValves(); renderAux(); renderSensors(); updateLockUI();
+        $('hero-time').textContent = state.system_time;
+        $('wb-weather').textContent = state.live_weather;
+        $('wb-loc').textContent = state.settings.location;
+        $('wb-sun').textContent = `${state.settings.virtual_sunrise_time} / ${state.settings.virtual_sunset_time}`;
+        const active = state.valves.filter(v=>v.status).length + state.aux_controls.filter(a=>a.status).length;
+        $('hero-status-word').textContent = active > 0 ? `Running 🔶` : 'Standing By';
+    }
+
+    function renderDashboard() {
+        const vOn = state.valves.filter(v => v.status).length;
+        const aOn = state.aux_controls.filter(a => a.status).length;
+        $('dashboard').innerHTML = `
+            <div class="stat-pill">
+                <div class="stat-pill-icon">💧</div>
+                <div class="stat-pill-val">${state.valves.length}</div>
+                <div class="stat-pill-label">Total Valves</div>
+            </div>
+            <div class="stat-pill">
+                <div class="stat-pill-icon">✅</div>
+                <div class="stat-pill-val green">${vOn + aOn}</div>
+                <div class="stat-pill-label">Active Now</div>
+            </div>
+            <div class="stat-pill">
+                <div class="stat-pill-icon">📋</div>
+                <div class="stat-pill-val violet">${state.logs.length}</div>
+                <div class="stat-pill-label">Log Entries</div>
+            </div>`;
+
+        $('sensor-strip-home').innerHTML = Object.entries(state.sensors).map(([k,v]) => `
+            <div class="sensor-chip">
+                <div class="sensor-chip-label">${k}</div>
+                <div class="sensor-chip-val ${v !== 'N/A' ? 'live' : ''}">${v}</div>
+            </div>`).join('');
+    }
+
+    function renderValves() {
+        const q = ($('search-input')?.value || '').toLowerCase().trim();
+        const filtered = state.valves.filter(v =>
+            !q || v.name.toLowerCase().includes(q) || `pin:${v.pin}`===q ||
+            (v.note&&v.note.toLowerCase().includes(q)) ||
+            (q==='on'&&v.status)||(q==='off'&&!v.status)||(q==='locked'&&v.locked)
+        );
+        const grid = $('valve-grid');
+        if (!filtered.length) {
+            grid.innerHTML = `<div class="empty-state"><span class="empty-icon">🌾</span><div class="empty-text">No valves found</div><div class="empty-sub">Try a different search</div></div>`;
+            return;
+        }
+        grid.innerHTML = filtered.map((valve, vi) => {
+            const idx = state.valves.findIndex(v => v.pin === valve.pin);
+            const timer = valve.status && valve.current_on_start_time
+                ? `<div class="valve-timer timer" data-start-time="${valve.current_on_start_time}"></div>`
+                : `<div class="valve-timer"></div>`;
+            const bCls = valve.locked ? 'locked' : valve.status ? 'on' : '';
+            const bTxt = valve.locked ? '🔒 Locked' : valve.status ? '● Active' : '○ Idle';
+            return `
+            <div class="valve-card ${valve.status?'on':''} ${valve.locked?'locked':''}" style="animation-delay:${vi*0.06}s">
+                <div class="valve-fill-bar"></div>
+                <div class="valve-card-top">
+                    <div class="valve-left">
+                        <div class="valve-emoji">${valve.icon||'💧'}</div>
+                        <div>
+                            <div class="valve-name">${valve.name}</div>
+                            <div class="valve-pin">PIN ${valve.pin}</div>
+                        </div>
+                    </div>
+                    <div class="v-badge ${bCls}">
+                        <div class="v-badge-dot"></div>
+                        ${bTxt}
+                    </div>
+                </div>
+                <div class="valve-note">${valve.note || 'No note'}</div>
+                ${timer}
+                <button data-index="${idx}" class="v-toggle ${valve.status?'on-state':''}" ${valve.locked?'disabled':''}>
+                    ${valve.status ? '⏸ Turn Off' : '▶ Turn On'}
+                </button>
+                <div class="v-actions">
+                    <button class="v-act action-btn" data-action="rename" data-type="valve" data-index="${idx}">✏️</button>
+                    <button class="v-act action-btn" data-action="note" data-type="valve" data-index="${idx}">📝</button>
+                    <button class="v-act action-btn" data-action="lock" data-type="valve" data-index="${idx}">${valve.locked?'🔓':'🔒'}</button>
+                    <button class="v-act danger action-btn" data-action="remove" data-type="valve" data-index="${idx}">🗑</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function renderAux() {
+        const auxHTML = state.aux_controls.length
+            ? state.aux_controls.map((a,i) => `<div class="aux-card ${a.status?'on':''}" data-index="${i}"><div class="aux-name">${a.name}</div><div class="aux-pin">PIN ${a.pin}</div><button class="aux-ren action-btn" data-action="rename" data-type="aux" data-index="${i}">✏</button></div>`).join('')
+            : `<div style="grid-column:span 2;text-align:center;padding:20px;font-size:12px;color:var(--text-dim);">No aux controls</div>`;
+        const deskAux = $('desk-aux-grid'); if(deskAux) deskAux.innerHTML = auxHTML;
+
+        const mobileAuxHTML = state.aux_controls.length
+            ? state.aux_controls.map((a,i) => `<div class="mobile-aux-card ${a.status?'on':''}" data-index="${i}"><div class="mobile-aux-name">${a.name}</div><div class="mobile-aux-pin">PIN ${a.pin}</div></div>`).join('')
+            : `<div style="grid-column:span 2;text-align:center;padding:32px;font-size:13px;color:var(--text-dim);">No aux controls</div>`;
+        const mAux = $('mobile-aux-grid'); if(mAux) mAux.innerHTML = mobileAuxHTML;
+    }
+
+    function renderSensors() {
+        const sHTML = Object.entries(state.sensors).map(([k,v]) => `
+            <div class="sensor-item"><div class="sensor-key">${k}</div><div class="sensor-val ${v!=='N/A'?'live':''}">${v}</div></div>`).join('');
+        const desk = $('desk-sensors'); if(desk) desk.innerHTML = sHTML;
+
+        const mHTML = Object.entries(state.sensors).map(([k,v]) => `
+            <div class="mobile-sensor-card"><div class="msensor-k">${k}</div><div class="msensor-v ${v!=='N/A'?'live':''}">${v}</div></div>`).join('');
+        const mob = $('mobile-sensors'); if(mob) mob.innerHTML = mHTML;
+    }
+
+    function updateLockUI() {
+        const locked = state.settings.config_locked;
+        const lbl = locked ? 'Unlock Config' : 'Lock Config';
+        const ico = locked ? '🔓' : '🔒';
+        [$('mob-lock-label'),$('desk-lock-label'),$('more-lock-label')].forEach(el => { if(el) el.textContent = lbl; });
+        [$('mob-lock-icon'),$('more-lock-icon')].forEach(el => { if(el) el.textContent = ico; });
+        $('add-valves-input').disabled = locked;
+        $('add-valves-btn').disabled = locked;
+    }
+
+    // NAVIGATION
+    function goPage(name) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        const el = $(`page-${name}`); if(el) el.classList.add('active');
+        document.querySelectorAll('.nav-item, .desk-nav-item').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.page === name);
+        });
+        if (name === 'valves') renderValves();
+        if (name === 'controls') { renderAux(); renderSensors(); }
+    }
+
+    document.querySelectorAll('.nav-item, .desk-nav-item').forEach(btn => {
+        if (btn.dataset.page) btn.addEventListener('click', () => goPage(btn.dataset.page));
+    });
+
+    // THEME
+    function toggleTheme() {
+        document.body.classList.toggle('light');
+        const isLight = document.body.classList.contains('light');
+        const label = isLight ? 'Light Mode' : 'Dark Mode';
+        const icon = isLight ? '☀️' : '🌙';
+        if($('desk-theme-label')) $('desk-theme-label').textContent = label;
+        if($('more-theme-label')) $('more-theme-label').textContent = label;
+    }
+    $('theme-btn')?.addEventListener('click', toggleTheme);
+    $('desk-theme-btn')?.addEventListener('click', toggleTheme);
+    $('more-theme-btn')?.addEventListener('click', toggleTheme);
+
+    // EMERGENCY
+    const doEmergency = () => { if(confirm('Turn ALL systems OFF?')) cmd('emergency_stop', {}); };
+    $('mob-emergency')?.addEventListener('click', doEmergency);
+    $('more-emergency')?.addEventListener('click', doEmergency);
+    $('desk-emergency')?.addEventListener('click', doEmergency);
+
+    $('add-valves-btn').addEventListener('click', () => cmd('add_valves', { count: parseInt($('add-valves-input').value)||1 }));
+    $('search-input').addEventListener('input', renderValves);
+
+    // MODAL
+    function openModal(type) {
+        const titles = { scheduler: 'Scheduler', automation: 'Automation', logs: 'System Logs', settings: 'Settings' };
+        $('modal-title').textContent = titles[type] || type;
+        $('modal-content').innerHTML = '';
+        if (type === 'logs') $('modal-content').innerHTML = `<div class="logs-box">${state.logs.length ? state.logs.join('<br>') : '— No logs yet —'}</div>`;
+        else if (type === 'scheduler') renderSchedModal();
+        else if (type === 'automation') renderAutoModal();
+        else $('modal-content').innerHTML = `<div class="empty-state"><span class="empty-icon">🚧</span><div class="empty-text">Coming soon</div></div>`;
+        $('modal-container').classList.add('open');
+    }
+
+    $('modal-close-btn').addEventListener('click', () => $('modal-container').classList.remove('open'));
+    $('modal-container').addEventListener('click', e => { if(e.target === $('modal-container')) $('modal-container').classList.remove('open'); });
+
+    function renderSchedModal() {
+        const items = [...state.valves.map((v,i)=>({t:'valve',i,n:`Valve: ${v.name}`})),...state.aux_controls.map((a,i)=>({t:'aux',i,n:`Aux: ${a.name}`}))];
+        $('modal-content').innerHTML = `
+        <div class="m2col">
+            <div>
+                <div class="m-section-tag">📅 Schedule Parameters</div>
+                <div class="fgrp"><label class="m-label">Target</label><select id="sched-item" class="fctl">${items.map(it=>`<option value="${it.t}-${it.i}">${it.n}</option>`).join('')}</select></div>
+                <div class="fgrp"><label class="m-label">Type</label><div class="radio-row"><label class="rchip"><input type="radio" name="sched_type" value="Fixed Time" checked> Fixed Time</label><label class="rchip"><input type="radio" name="sched_type" value="Cycle"> Cycle</label></div></div>
+                <div id="form-fixed">
+                    <div class="fgrp"><label class="m-label">Action</label><div class="radio-row"><label class="rchip"><input type="radio" name="sched_action" value="ON" checked> Turn ON</label><label class="rchip"><input type="radio" name="sched_action" value="OFF"> Turn OFF</label></div></div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><div class="fgrp"><label class="m-label">Time</label><input type="time" id="fixed-time" class="fctl"></div><div class="fgrp"><label class="m-label">Preset</label><select id="fixed-preset" class="fctl"><option>Custom</option><option>Sunrise</option><option>Sunset</option></select></div></div>
+                    <div class="fgrp"><label class="chk"><input type="checkbox" id="fixed-skip-rain"> Skip if rainy</label></div>
+                </div>
+                <div id="form-cycle" style="display:none;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;"><div class="fgrp"><label class="m-label">ON (min)</label><input type="number" id="cyc-on" value="5" class="fctl"></div><div class="fgrp"><label class="m-label">OFF (min)</label><input type="number" id="cyc-off" value="10" class="fctl"></div><div class="fgrp"><label class="m-label">Count</label><input type="number" id="cyc-count" value="3" class="fctl"></div></div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"><div class="fgrp"><label class="m-label">Start</label><input type="time" id="cyc-time" class="fctl"></div><div class="fgrp"><label class="m-label">Preset</label><select id="cyc-preset" class="fctl"><option>Custom</option><option>Sunrise</option><option>Sunset</option></select></div></div>
+                    <div class="fgrp"><label class="chk"><input type="checkbox" id="cyc-skip-rain"> Skip if rainy</label></div>
+                </div>
+                <button id="add-sched-btn" style="width:100%;padding:14px;background:var(--glow-dim);border:1.5px solid rgba(255,109,0,0.4);border-radius:14px;color:var(--glow);font-family:var(--heading);font-size:15px;font-weight:800;cursor:pointer;margin-top:4px;">Save Schedule</button>
+            </div>
+            <div>
+                <div class="m-section-tag violet">📋 Active Schedules</div>
+                <div id="sched-list" style="max-height:350px;overflow-y:auto;"></div>
+            </div>
+        </div>`;
+
+        document.querySelectorAll('input[name="sched_type"]').forEach(r => r.addEventListener('change', () => {
+            const fix = document.querySelector('input[name="sched_type"]:checked').value === 'Fixed Time';
+            $('form-fixed').style.display = fix ? 'block' : 'none';
+            $('form-cycle').style.display = fix ? 'none' : 'block';
+        }));
+        $('add-sched-btn').addEventListener('click', () => {
+            const [itemType, itemIdx] = $('sched-item').value.split('-');
+            const sType = document.querySelector('input[name="sched_type"]:checked').value;
+            const details = { type: sType };
+            if (sType === 'Fixed Time') { details.action = document.querySelector('input[name="sched_action"]:checked').value; details.time_str = $('fixed-time').value||'00:00'; details.time_preset = $('fixed-preset').value; details.skip_rainy = $('fixed-skip-rain').checked; }
+            else { details.cycle_on_min=$('cyc-on').value; details.cycle_off_min=$('cyc-off').value; details.cycle_count=$('cyc-count').value; details.cycle_start_time=$('cyc-time').value||'00:00'; details.cycle_start_preset=$('cyc-preset').value; details.cycle_skip_rainy=$('cyc-skip-rain').checked; }
+            cmd('set_schedule', { item_type: itemType, item_idx: parseInt(itemIdx), details });
+            showToast('Schedule saved ✓');
+        });
+        const allS = [...state.valves,...state.aux_controls].flatMap(i=>(i.schedules||[]).map(s=>({...s,iName:i.name})));
+        $('sched-list').innerHTML = allS.length ? allS.map(s=>`<div class="list-item"><div><div class="li-name">${s.iName}</div><div class="li-sub">${fmtSched(s)}</div></div><button class="x-btn action-btn" data-action="delete-sched" data-id="${s.id}">✕</button></div>`).join('') : `<div class="empty-state" style="padding:24px;"><span class="empty-icon" style="font-size:32px;">📅</span><div class="empty-sub">No schedules yet</div></div>`;
+    }
+
+    function renderAutoModal() {
+        const items = [...state.valves.map((v,i)=>({name:`Valve: ${v.name}`})),...state.aux_controls.map((a,i)=>({name:`Aux: ${a.name}`}))];
+        const sensors = ["Soil Moisture","Temp (DHT22)","Humidity (DHT22)","Temp (DHT11)","Humidity (DHT11)"];
+        $('modal-content').innerHTML = `
+        <div class="m2col">
+            <div>
+                <div class="m-section-tag">⚡ IF Trigger</div>
+                <div class="fgrp"><label class="m-label">Sensor</label><select id="auto-sensor" class="fctl">${sensors.map(s=>`<option>${s}</option>`).join('')}</select></div>
+                <div id="auto-condition-wrapper"></div>
+                <div class="m-section-tag violet" style="margin-top:16px;">🎯 THEN Action</div>
+                <div class="fgrp"><label class="m-label">Command</label><select id="auto-action" class="fctl"><option>Turn ON</option><option>Turn OFF</option></select></div>
+                <div class="fgrp"><label class="m-label">Target</label><select id="auto-target" class="fctl">${items.map(t=>`<option value="${t.name}">${t.name}</option>`).join('')}</select></div>
+                <div id="auto-dur-wrap" class="fgrp"><label class="m-label">Duration (min)</label><input type="number" id="auto-duration" value="10" min="1" class="fctl"></div>
+                <button id="add-auto-btn" style="width:100%;padding:14px;background:var(--glow-dim);border:1.5px solid rgba(255,109,0,0.4);border-radius:14px;color:var(--glow);font-family:var(--heading);font-size:15px;font-weight:800;cursor:pointer;margin-top:4px;">Add Rule</button>
+            </div>
+            <div>
+                <div class="m-section-tag violet">📋 Active Rules</div>
+                <div id="auto-rules-list" style="max-height:350px;overflow-y:auto;"></div>
+            </div>
+        </div>`;
+        const ss=$('auto-sensor'),as=$('auto-action'),rl=$('auto-rules-list');
+        const updC=()=>{const s=ss.value,w=$('auto-condition-wrapper');if(s==='Soil Moisture')w.innerHTML=`<div class="fgrp"><label class="m-label">State</label><select id="auto-value" class="fctl"><option>Dry</option><option>Wet</option></select></div>`;else{const u=s.includes('Temp')?'°C':'%';w.innerHTML=`<div style="display:grid;grid-template-columns:1fr 2fr;gap:8px;"><div class="fgrp"><label class="m-label">Operator</label><select id="auto-condition" class="fctl"><option value=">">&gt;</option><option value="<">&lt;</option><option value="==">==</option></select></div><div class="fgrp"><label class="m-label">Value (${u})</label><input type="number" id="auto-value" value="25" class="fctl"></div></div>`;}};
+        const updD=()=>{$('auto-dur-wrap').style.display=as.value==='Turn ON'?'block':'none';};
+        ss.addEventListener('change',updC);as.addEventListener('change',updD);
+        $('add-auto-btn').addEventListener('click',()=>{cmd('add_automation_rule',{sensor:ss.value,condition:$('auto-condition')?$('auto-condition').value:'is',value:$('auto-value').value,action:as.value,target:$('auto-target').value,duration_min:as.value==='Turn ON'?parseInt($('auto-duration').value):null,last_triggered:null});showToast('Rule added ✓');});
+        rl.innerHTML=state.automation_rules?.length?state.automation_rules.map((r,i)=>`<div class="list-item"><div class="li-sub">${fmtRule(r)}</div><button class="x-btn action-btn" data-action="delete-auto" data-index="${i}">✕</button></div>`).join(''):`<div class="empty-state" style="padding:24px;"><span class="empty-icon" style="font-size:32px;">🤖</span><div class="empty-sub">No rules yet</div></div>`;
+        updC();updD();
+    }
+
+    function fmtSched(s){if(s.type==='Cycle')return`Cycle: ON ${s.on_m}m OFF ${s.off_m}m ×${s.count||'∞'} @ ${s.time}${s.skip_rainy?' ☔':''}`;return`${s.action} @ ${s.time}${s.skip_rainy?' ☔':''}`;}
+    function fmtRule(r){const c=r.sensor==='Soil Moisture'?`${r.sensor} is ${r.value}`:`${r.sensor} ${r.condition} ${r.value}${r.sensor.includes('Temp')?'°C':'%'}`;return`IF ${c} → ${r.action} ${r.target}${r.action==='Turn ON'&&r.duration_min?` (${r.duration_min}m)`:''}`;}
+
+    function showToast(msg, err=false) {
+        $('toast-msg').textContent = msg;
+        $('toast-icon').textContent = err ? '✗' : '✓';
+        toast.className = `toast${err?' err':''} show`;
+        setTimeout(()=>toast.className=`toast${err?' err':''}`, 3200);
+    }
+    const toast = $('toast');
+
+    // GLOBAL CLICK DELEGATE
+    document.body.addEventListener('click', e => {
+        const mt = e.target.closest('.modal-trigger'); if(mt && mt.dataset.modal) { openModal(mt.dataset.modal); return; }
+        const vt = e.target.closest('.v-toggle'); if(vt) { cmd('toggle_valve', { index: parseInt(vt.dataset.index) }); return; }
+        const auxCard = e.target.closest('.aux-card, .mobile-aux-card'); if(auxCard && !e.target.closest('.aux-ren') && auxCard.dataset.index!==undefined) { cmd('toggle_aux', { index: parseInt(auxCard.dataset.index) }); return; }
+        const ab = e.target.closest('.action-btn');
+        if(ab) {
+            const {action,type,index,id} = ab.dataset;
+            if(action==='delete-sched'){if(confirm('Delete schedule?'))cmd('remove_schedule',{id});return;}
+            if(action==='delete-auto'){if(confirm('Delete rule?'))cmd('remove_automation_rule',{index:parseInt(index)});return;}
+            if(action==='remove'){if(confirm(`Remove this ${type}?`))cmd('remove_valve',{index:parseInt(index)});}
+            else if(action==='rename'){const n=prompt('New name:');if(n)cmd('rename_item',{type,index:parseInt(index),newName:n});}
+            else if(action==='note'){const n=prompt('Note:');if(n!==null)cmd('edit_note',{index:parseInt(index),newNote:n});}
+            else if(action==='lock')cmd('toggle_valve_lock',{index:parseInt(index)});
+        }
+    });
+
+    setInterval(()=>{
+        document.querySelectorAll('.timer').forEach(t=>{
+            const start=parseFloat(t.dataset.startTime);if(!start)return;
+            const el=Math.floor(Date.now()/1000-start);
+            t.textContent=`⏱ ${String(Math.floor(el/3600)).padStart(2,'0')}:${String(Math.floor((el%3600)/60)).padStart(2,'0')}:${String(el%60).padStart(2,'0')}`;
+        });
+    },1000);
+});
+</script>
+</body>
+</html>
